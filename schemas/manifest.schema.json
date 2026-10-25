@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/manifest.schema.json",
+  "title": "CFA4 AI capability manifest",
+  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
+  "properties": {
+    "manifest_version": { "const": 1 },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "impl", "version", "shape", "scope"],
+      "properties": {
+        "id": {
+          "description": "Functional type from the 200-type list, e.g. AI-073.",
+          "type": "string",
+          "pattern": "^AI-[0-9]{3}$"
+        },
+        "impl": { "$ref": "#/$defs/slug" },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "family": {
+          "description": "Engine family M1-M12.",
+          "type": "string",
+          "pattern": "^M([1-9]|1[0-2])$"
+        },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "shape": {
+          "description": "Input/output shape, e.g. clip+mask->clip.",
+          "type": "string",
+          "pattern": "^[a-z0-9_+]+->[a-z0-9_+]+$"
+        },
+        "scope": { "enum": ["frame", "window", "clip", "generative"] },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["before", "after"],
+          "properties": {
+            "before": { "type": "integer", "minimum": 0, "maximum": 1024 },
+            "after": { "type": "integer", "minimum": 0, "maximum": 1024 }
+          }
+        },
+        "edition": {
+          "description": "Informational only; the core never enforces it.",
+          "enum": ["free", "paid"]
+        }
+      },
+      "if": { "properties": { "scope": { "const": "window" } } },
+      "then": { "required": ["window"] }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["candle", "onnx", "python", "remote"] },
+        "providers": {
+          "description": "Execution providers in preference order.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["cuda", "tensorrt", "migraphx", "rocm", "openvino", "cpu"] }
+        },
+        "precision": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["fp32", "fp16", "bf16", "fp8", "int8", "int4"] }
+        },
+        "env": {
+          "description": "Worker environment name; python only. Empty means the shared environment.",
+          "type": "string",
+          "pattern": "^([a-z0-9][a-z0-9-]*)?$"
+        },
+        "protocol": {
+          "description": "Worker protocol major version this implementation speaks.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "io": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/port" } },
+        "outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/port" } },
+        "max_resolution": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 1, "maximum": 16384 },
+            { "type": "integer", "minimum": 1, "maximum": 16384 }
+          ],
+          "items": false,
+          "minItems": 2
+        },
+        "tiling": { "type": "boolean" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vram_mb"],
+      "properties": {
+        "vram_mb": {
+          "description": "Measured VRAM per resolution, optionally per precision (\"1080p\" or \"1080p@fp8\").",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/resolutionKey" },
+          "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 1048576 }
+        },
+        "ram_mb": { "type": "integer", "minimum": 0 },
+        "load_ms": { "type": "integer", "minimum": 0 },
+        "fps_hint": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/resolutionKey" },
+          "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preview": { "$ref": "#/$defs/tier" },
+        "standard": { "$ref": "#/$defs/tier" },
+        "final": { "$ref": "#/$defs/tier" }
+      }
+    },
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deterministic": { "type": "boolean" },
+        "seedable": { "type": "boolean" },
+        "cancellable": { "enum": ["none", "chunk", "step"] },
+        "checkpoint": { "type": "boolean" }
+      }
+    },
+    "weights": {
+      "description": "Where the user obtains the model. CFA4 does not distribute models.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "sha256"],
+        "properties": {
+          "file": { "type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$", "not": { "pattern": "(^|/)\\.\\.(/|$)" } },
+          "url": { "type": "string", "pattern": "^https://" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "size_mb": { "type": "integer", "minimum": 0 },
+          "precision": { "enum": ["fp32", "fp16", "bf16", "fp8", "int8", "int4"] }
+        }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "model", "commercial"],
+      "properties": {
+        "code": { "description": "SPDX expression of the implementation code.", "type": "string", "minLength": 1 },
+        "model": { "description": "SPDX expression or LicenseRef of the weights.", "type": "string", "minLength": 1 },
+        "commercial": { "description": "Commercial use allowed by both code and model.", "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema"],
+      "properties": {
+        "schema": {
+          "description": "Relative path of the parameter JSON Schema; the Qt settings panel is generated from it.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+\\.json$"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "resolutionKey": { "pattern": "^(360|480|540|720|1080|1440|2160|4320)p(@(fp32|fp16|bf16|fp8|int8|int4))?$" },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+        "type": { "enum": ["frame", "mask", "audio", "text", "depth", "flow", "points", "json"] },
+        "color": { "enum": ["srgb", "rec709", "rec2020-pq", "rec2020-hlg", "linear-srgb", "acescg"] },
+        "format": { "enum": ["rgb8", "rgba8", "rgb16f", "rgba16f", "rgba32f", "gray8", "gray16", "gray32f", "pcm-f32"] },
+        "optional": { "type": "boolean" }
+      }
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "steps": { "type": "integer", "minimum": 1 },
+        "params": { "type": "object" }
+      }
+    }
+  }
+}

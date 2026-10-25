@@ -1,0 +1,15 @@
+{"type":"hello","id":0,"protocol":{"min":1,"max":1},"host":"cfa4 0.1.0"}
+{"type":"caps","id":0,"reply_to":0,"protocol":1,"worker":{"name":"cfa4-onnx-worker","version":"0.1.0","license":"MIT OR Apache-2.0"},"impls":["bgswap-onnx"],"limits":{"max_jobs":1,"max_buffer_bytes":268435456},"devices":[0,"cpu"]}
+{"type":"load","id":1,"impl":"bgswap-onnx","device":0,"precision":"fp16","weights_dir":"/home/user/.local/share/cfa4/models"}
+{"type":"loaded","id":1,"reply_to":1,"impl":"bgswap-onnx","vram_mb":1980}
+{"type":"run","id":2,"job":"j-42","impl":"bgswap-onnx","device":0,"inputs":{"src":{"shm":"/cfa4-ai-j42-in","offset":0,"len":49766400,"kind":"frame","width":1920,"height":1080,"stride":5760,"frames":8,"format":"rgb8","color":"srgb"}},"outputs":{"out":{"shm":"/cfa4-ai-j42-out","offset":0,"len":66355200,"kind":"frame","width":1920,"height":1080,"stride":7680,"frames":8,"format":"rgba8","color":"srgb","premultiplied":false}},"params":{"refine":true},"tier":"final","range":{"start":120,"count":8},"chunk":{"index":0,"count":3}}
+{"type":"progress","id":2,"reply_to":2,"job":"j-42","done":4,"total":8,"stage":"inference"}
+{"type":"result","id":3,"reply_to":2,"job":"j-42","outputs":{"out":{"shm":"/cfa4-ai-j42-out","offset":0,"len":66355200,"kind":"frame","width":1920,"height":1080,"stride":7680,"frames":8,"format":"rgba8","color":"srgb","premultiplied":false}},"metrics":{"elapsed_ms":410,"peak_vram_mb":2050}}
+{"type":"run","id":3,"job":"j-43","impl":"bgswap-onnx","device":0,"inputs":{"src":{"shm":"/cfa4-ai-j43-in","offset":0,"len":6220800,"kind":"frame","width":1920,"height":1080,"stride":5760,"format":"rgb8"}},"outputs":{"out":{"shm":"/cfa4-ai-j43-out","offset":0,"len":8294400,"kind":"frame","width":1920,"height":1080,"stride":7680,"format":"rgba8"}},"params":{},"tier":"preview"}
+{"type":"cancel","id":4,"job":"j-43"}
+{"type":"error","id":4,"reply_to":3,"job":"j-43","code":"cancelled","message":"cancelled by host","retryable":false}
+{"type":"load","id":5,"impl":"bgswap-onnx","device":"cpu","precision":"fp32","weights_dir":"/home/user/.local/share/cfa4/models"}
+{"type":"loaded","id":5,"reply_to":5,"impl":"bgswap-onnx","vram_mb":0}
+{"type":"unload","id":6,"impl":"bgswap-onnx","device":0}
+{"type":"stats","id":6,"reply_to":6,"loaded":[{"impl":"bgswap-onnx","device":"cpu","vram_mb":0}],"rss_mb":610}
+{"type":"shutdown","id":7}

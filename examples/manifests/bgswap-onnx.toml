@@ -1,0 +1,56 @@
+manifest_version = 1
+
+[capability]
+id      = "AI-076"
+impl    = "bgswap-onnx"
+version = "1.2.0"
+family  = "M6"
+name    = "Videóháttér-csere"
+shape   = "clip+mask->clip"
+scope   = "window"
+window  = { before = 4, after = 4 }
+edition = "free"
+
+[runtime]
+kind      = "onnx"
+providers = ["tensorrt", "cuda", "migraphx", "openvino", "cpu"]
+precision = ["fp16", "fp32"]
+protocol  = 1
+
+[io]
+inputs = [
+  { name = "src", type = "frame", color = "srgb", format = "rgb8" },
+  { name = "mask", type = "mask", format = "gray8", optional = true },
+]
+outputs = [{ name = "out", type = "frame", color = "srgb", format = "rgba8" }]
+max_resolution = [3840, 2160]
+tiling = true
+
+[resources]
+vram_mb  = { "720p" = 1200, "1080p" = 2100, "2160p" = 6400 }
+load_ms  = 1800
+fps_hint = { "1080p" = 24 }
+
+[tiers]
+preview = { scale = 0.5, params = { refine = false } }
+final   = { scale = 1.0, params = { refine = true } }
+
+[behavior]
+deterministic = true
+seedable      = false
+cancellable   = "chunk"
+checkpoint    = true
+
+[[weights]]
+file    = "bgswap/model-fp16.onnx"
+sha256  = "0000000000000000000000000000000000000000000000000000000000000000"
+size_mb = 140
+precision = "fp16"
+
+[license]
+code       = "MIT OR Apache-2.0"
+model      = "LicenseRef-to-be-checked"
+commercial = false
+
+[params]
+schema = "bgswap.params.schema.json"

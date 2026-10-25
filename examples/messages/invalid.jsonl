@@ -1,9 +1,12 @@
 {"type":"hello","id":0,"host":"missing protocol range"}
-{"type":"run","id":1,"job":"j-1","impl":"bgswap-onnx","gpu":0,"inputs":{"src":{"shm":"/tmp/../etc/passwd","offset":0,"len":10,"kind":"json"}},"outputs":{},"params":{},"tier":"final"}
-{"type":"run","id":1,"job":"j-1","impl":"bgswap-onnx","gpu":0,"inputs":{"src":{"shm":"/cfa4-ai-x","offset":0,"len":10,"kind":"frame"}},"outputs":{},"params":{},"tier":"final"}
+{"type":"run","id":1,"job":"j-1","impl":"bgswap-onnx","device":0,"inputs":{"src":{"shm":"/tmp/../etc/passwd","offset":0,"len":10,"kind":"json"}},"outputs":{},"params":{},"tier":"final"}
+{"type":"run","id":1,"job":"j-1","impl":"bgswap-onnx","device":0,"inputs":{"src":{"shm":"/cfa4-ai-x","offset":0,"len":10,"kind":"frame"}},"outputs":{},"params":{},"tier":"final"}
 {"type":"error","id":2,"code":"segfault","message":"unknown error code"}
 {"type":"progress","id":3,"reply_to":2,"job":"j 1","done":1,"total":0}
-{"type":"load","id":-1,"impl":"x","gpu":0}
-{"type":"load","id":1,"impl":"x","gpu":0,"weights_dir":"relative/path"}
+{"type":"load","id":-1,"impl":"x","device":0}
+{"type":"load","id":1,"impl":"x","device":0,"weights_dir":"relative/path"}
 {"type":"result","id":1,"reply_to":0,"job":"j-1","outputs":{},"extra":true}
 {"type":"teleport","id":1}
+{"type":"load","id":1,"impl":"x","device":"tpu"}
+{"type":"load","id":1,"impl":"x","device":-1}
+{"type":"load","id":1,"impl":"x"}

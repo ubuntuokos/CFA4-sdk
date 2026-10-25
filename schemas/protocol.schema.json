@@ -30,11 +30,12 @@
     },
     "jobId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
     "impl": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-    "gpu": {
-      "description": "Index into the devices the host made visible to this worker.",
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 63
+    "device": {
+      "description": "Execution device: \"cpu\", or an index into the GPUs the host made visible to this worker.",
+      "oneOf": [
+        { "const": "cpu" },
+        { "type": "integer", "minimum": 0, "maximum": 63 }
+      ]
     },
     "precision": { "enum": ["fp32", "fp16", "bf16", "fp8", "int8", "int4"] },
     "tier": { "enum": ["preview", "standard", "final"] },
@@ -133,19 +134,19 @@
             }
           }
         },
-        "gpus": { "type": "array", "items": { "$ref": "#/$defs/gpu" } }
+        "devices": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/device" } }
       }
     },
     "load": {
       "description": "Host -> worker: load an implementation's weights onto a GPU.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "impl", "gpu"],
+      "required": ["type", "id", "impl", "device"],
       "properties": {
         "type": { "const": "load" },
         "id": { "$ref": "#/$defs/id" },
         "impl": { "$ref": "#/$defs/impl" },
-        "gpu": { "$ref": "#/$defs/gpu" },
+        "device": { "$ref": "#/$defs/device" },
         "precision": { "$ref": "#/$defs/precision" },
         "weights_dir": { "description": "Absolute path of the user's model folder.", "type": "string", "pattern": "^/" }
       }
@@ -167,13 +168,13 @@
       "description": "Host -> worker: run one job (or one chunk of a job).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "job", "impl", "gpu", "inputs", "outputs", "params", "tier"],
+      "required": ["type", "id", "job", "impl", "device", "inputs", "outputs", "params", "tier"],
       "properties": {
         "type": { "const": "run" },
         "id": { "$ref": "#/$defs/id" },
         "job": { "$ref": "#/$defs/jobId" },
         "impl": { "$ref": "#/$defs/impl" },
-        "gpu": { "$ref": "#/$defs/gpu" },
+        "device": { "$ref": "#/$defs/device" },
         "inputs": {
           "type": "object",
           "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
@@ -256,14 +257,15 @@
       }
     },
     "unload": {
-      "description": "Host -> worker: free an implementation's VRAM. Answered by stats.",
+      "description": "Host -> worker: free an implementation on one device, or on every device when device is absent. Answered by stats.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "id", "impl"],
       "properties": {
         "type": { "const": "unload" },
         "id": { "$ref": "#/$defs/id" },
-        "impl": { "$ref": "#/$defs/impl" }
+        "impl": { "$ref": "#/$defs/impl" },
+        "device": { "$ref": "#/$defs/device" }
       }
     },
     "stats": {
@@ -280,10 +282,10 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["impl", "gpu", "vram_mb"],
+            "required": ["impl", "device", "vram_mb"],
             "properties": {
               "impl": { "$ref": "#/$defs/impl" },
-              "gpu": { "$ref": "#/$defs/gpu" },
+              "device": { "$ref": "#/$defs/device" },
               "vram_mb": { "type": "integer", "minimum": 0 }
             }
           }

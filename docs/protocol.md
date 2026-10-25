@@ -27,7 +27,7 @@ MIT OR Apache-2.0 licencű, ezért a zárt, fizetős workerek is szabadon haszn�
 gazda                          worker
 hello {protocol:{min,max}} ->
                            <- caps {protocol, worker, impls, limits}
-load {impl, gpu}           ->
+load {impl, device}        ->
                            <- loaded {vram_mb}       vagy error
 run {job, inputs, outputs} ->
                            <- progress … (nem kötelező)
@@ -46,8 +46,10 @@ shutdown                   ->  (a worker kilép, kód: 0)
 - **Szakaszolás:** hosszú klipnél a gazda szakaszokra bontja a feladatot (`chunk`).
   Megszakítani szakaszhatáron vagy lépéshatáron lehet, ahogy a manifest `behavior.cancellable`
   mezője megadja.
-- **GPU:** a `gpu` a gazda által láthatóvá tett eszközök indexe. Több GPU-s gépen ugyanaz a
-  worker több eszközt is kaphat.
+- **Eszköz:** a `device` értéke `"cpu"`, vagy a gazda által láthatóvá tett GPU-k egyikének
+  indexe. A `caps.devices` sorolja fel, mit tud a worker. Így a CPU-s visszalépés (§3, `oom`)
+  és a csak CPU-s worker is leírható, több GPU-s gépen pedig ugyanaz a worker több eszközt is
+  kaphat.
 
 ## 3. Hibák
 

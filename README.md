@@ -12,6 +12,7 @@ tartalmaz belőle kódot.
 | [`schemas/protocol.schema.json`](schemas/protocol.schema.json) | A protokoll üzeneteinek JSON Schemája |
 | [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája |
 | [`examples/`](examples) | Mintamanifestek és egy teljes mintabeszélgetés |
+| [`crates/cfa4-ai-protocol`](crates/cfa4-ai-protocol) | Rust crate: üzenettípusok, érvényesség-ellenőrzés, JSON-lines kódolás, verzióegyeztetés |
 | [`tests/`](tests) | A sémák és a minták ellenőrzése |
 
 ## Ellenőrzés
@@ -21,13 +22,18 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r tests/requirements.txt
 .venv/bin/python -m unittest discover -s tests -v
 bash scripts/check-licence.sh
+
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo deny check licenses sources
 ```
 
 ## Tervezett lépések
 
 1. Protokoll és manifest-séma (ez a változat).
-2. `cfa4-ai-protocol` Rust crate (üzenettípusok, kódolás, osztott memória) és Python csomag
-   ugyanerre, a sémából generált tesztekkel.
+2. `cfa4-ai-protocol` Rust crate (üzenettípusok, ellenőrzés, kódolás; ez a változat), majd
+   Python csomag ugyanerre. Az osztott memória leképezése a CFA4 gazdaoldalára kerül.
 3. Mintaworker ONNX Runtime-mal, amelyet a CFA4 a minimumgépen
    (`scripts/dev/run-minspec.sh`) tesztel.
 

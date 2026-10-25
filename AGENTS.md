@@ -11,4 +11,7 @@
    `examples/` és a `tests/` bővítésével kerülhet be.
 4. **Soha ne omoljon össze:** a későbbi SDK-kódra a CFA4 szabályai érvényesek (nincs
    `unwrap`/`panic!`, minden bemenet ellenséges, korlátos foglalás).
-5. **Commit:** egy feladatazonosító commitonként (`S1: …`), csak zöld állapot.
+5. **Rust:** a `cfa4-ai-protocol` pontosan azt fogadja el, amit a séma: minden minta
+   (`examples/messages/*.jsonl`) oda-vissza változatlan, minden hibás minta elutasított. Új
+   függőség csak megengedő licenccel (`cargo deny check licenses`), `unsafe` tilos.
+6. **Commit:** egy feladatazonosító commitonként (`S1: …`), csak zöld állapot.

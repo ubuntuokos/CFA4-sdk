@@ -1,0 +1,43 @@
+manifest_version = 1
+
+[capability]
+id      = "AI-001"
+impl    = "t2v-wan-small"
+version = "0.1.0"
+family  = "M1"
+name    = "Szövegből videó (kis modell)"
+shape   = "text->clip"
+scope   = "generative"
+edition = "paid"
+
+[runtime]
+kind      = "python"
+providers = ["cuda"]
+precision = ["bf16", "fp8"]
+env       = ""
+protocol  = 1
+
+[io]
+inputs  = [{ name = "prompt", type = "text" }]
+outputs = [{ name = "out", type = "frame", color = "srgb", format = "rgb8" }]
+max_resolution = [1280, 720]
+
+[resources]
+vram_mb = { "480p@bf16" = 9800, "720p@fp8" = 11500 }
+ram_mb  = 24000
+load_ms = 45000
+
+[tiers]
+preview = { scale = 0.5, steps = 12 }
+final   = { scale = 1.0, steps = 40 }
+
+[behavior]
+deterministic = false
+seedable      = true
+cancellable   = "step"
+
+[license]
+code       = "MIT OR Apache-2.0"
+model      = "LicenseRef-to-be-checked"
+commercial = false
+notes      = "Example only: verify the model licence before use."

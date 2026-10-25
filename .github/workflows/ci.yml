@@ -1,0 +1,27 @@
+name: CFA4 SDK checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schemas:
+    name: Schemas, examples and licence headers
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install test dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet -r tests/requirements.txt
+      - name: Schema tests
+        run: .venv/bin/python -m unittest discover -s tests -v
+      - name: Licence headers
+        run: bash scripts/check-licence.sh

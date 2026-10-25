@@ -25,3 +25,25 @@ jobs:
         run: .venv/bin/python -m unittest discover -s tests -v
       - name: Licence headers
         run: bash scripts/check-licence.sh
+
+  rust:
+    name: Rust SDK (fmt, clippy, tests, licences)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Toolchain
+        run: |
+          rustup component add rustfmt clippy
+          rustc --version
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked --workspace
+      - name: Dependency licences (closed workers link this SDK)
+        run: |
+          cargo install cargo-deny --locked --version 0.20.2
+          cargo deny check licenses sources

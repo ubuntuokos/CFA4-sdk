@@ -85,12 +85,31 @@ class ProtocolSchema(unittest.TestCase):
                 errors = [e.message for e in self.validator.iter_errors(message)]
                 self.assertEqual(errors, [])
 
+    def test_full_example_is_valid(self):
+        for n, message in enumerate(jsonl(EXAMPLES / "messages" / "full.jsonl"), 1):
+            with self.subTest(line=n, type=message.get("type")):
+                errors = [e.message for e in self.validator.iter_errors(message)]
+                self.assertEqual(errors, [])
+
     def test_session_example_covers_every_message_type(self):
         schema = self.validator.schema
         defined = {schema["$defs"][ref["$ref"].rsplit("/", 1)[-1]]["properties"]["type"]["const"]
                    for ref in schema["oneOf"]}
         used = {m["type"] for m in jsonl(EXAMPLES / "messages" / "session.jsonl")}
         self.assertEqual(defined, used)
+
+    def test_full_example_uses_every_property(self):
+        """full.jsonl sets every optional field, so typed SDKs round-trip all of them."""
+        defs = self.validator.schema["$defs"]
+        messages = jsonl(EXAMPLES / "messages" / "full.jsonl")
+        for ref in self.validator.schema["oneOf"]:
+            name = ref["$ref"].rsplit("/", 1)[-1]
+            kind = defs[name]["properties"]["type"]["const"]
+            used = set().union(*(m.keys() for m in messages if m["type"] == kind))
+            with self.subTest(type=kind):
+                self.assertEqual(set(defs[name]["properties"]), used)
+        buffers = [b for m in messages for key in ("inputs", "outputs") for b in m.get(key, {}).values()]
+        self.assertEqual(set(defs["buffer"]["properties"]), set().union(*(b.keys() for b in buffers)))
 
     def test_invalid_messages_are_rejected(self):
         for n, message in enumerate(jsonl(EXAMPLES / "messages" / "invalid.jsonl"), 1):

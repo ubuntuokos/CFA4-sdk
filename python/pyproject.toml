@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cfa4-ai"
+version = "0.1.0"
+description = "CFA4 AI worker SDK: protocol messages, validation, JSON-lines framing, shared memory and a worker loop"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+dependencies = []
+classifiers = ["Operating System :: POSIX :: Linux"]
+
+[tool.setuptools.package-data]
+cfa4_ai = ["protocol.schema.json"]

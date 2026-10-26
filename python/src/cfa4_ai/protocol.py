@@ -16,6 +16,7 @@ SOCKET_ENV = "CFA4_AI_SOCKET"
 SHM_PREFIX = "/cfa4-ai-"
 MAX_LINE_BYTES = 1 << 20
 MAX_SAFE_INTEGER = (1 << 53) - 1
+MAX_DEPTH = 64
 
 ERROR_CODES = (
     "oom", "invalid_input", "model_error", "model_missing", "unsupported",
@@ -52,6 +53,18 @@ def _no_duplicates(pairs):
 
 def _no_constant(name):
     raise ProtocolError("json", f"{name} is not JSON")
+
+
+def _check_depth(value):
+    """Rejects nesting deeper than ``MAX_DEPTH`` without recursing."""
+    stack = [(value, 1)]
+    while stack:
+        node, depth = stack.pop()
+        if isinstance(node, (list, dict)):
+            if depth > MAX_DEPTH:
+                raise ProtocolError("json", f"nested deeper than {MAX_DEPTH} levels")
+            children = node.values() if isinstance(node, dict) else node
+            stack.extend((child, depth + 1) for child in children)
 
 
 def _check_text(value, path="$"):
@@ -106,6 +119,7 @@ def decode(line):
         )
     except (UnicodeDecodeError, ValueError, RecursionError) as e:
         raise ProtocolError("json", f"malformed message: {e}") from None
+    _check_depth(message)
     _check_text(message)
     validate(message)
     return _integral(message)
@@ -113,6 +127,7 @@ def decode(line):
 
 def encode(message):
     """Validates and serializes one message as a line ending in ``\\n``."""
+    _check_depth(message)
     _check_text(message)
     validate(message)
     line = json.dumps(message, ensure_ascii=False, separators=(",", ":"), allow_nan=False)

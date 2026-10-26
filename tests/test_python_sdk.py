@@ -108,6 +108,13 @@ class Codec(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             decode(json.dumps(caps))
 
+    def test_deep_nesting_is_a_protocol_error(self):
+        for line in ['{"type":' + "[" * 500 + "]" * 500 + ',"id":1}',
+                     '{"type":"run","id":1,"params":' + '{"a":' * 900 + "1" + "}" * 900 + "}"]:
+            with self.subTest(line=line[:30]), self.assertRaises(ProtocolError) as e:
+                decode(line)
+            self.assertEqual(e.exception.code, "json")
+
     def test_unpaired_surrogates_are_rejected(self):
         for line in ['{"type":"shutdown","id":1,"\\ud800":0}',
                      '{"type":"error","id":1,"code":"crash","message":"\\udfff"}']:
@@ -278,6 +285,12 @@ class ExampleWorkerSession(unittest.TestCase):
         self.conn.sendall(b'{"type":"shutdown","id":1,"\\ud800":0}\n')
         error = self.receive()
         self.assertEqual((error["type"], error["code"]), ("error", "protocol"))
+        self.assertEqual(self.proc.wait(timeout=20), 2)
+
+    def test_deeply_nested_message_gets_a_protocol_error(self):
+        self.handshake()
+        self.conn.sendall(b'{"type":' + b"[" * 500 + b"]" * 500 + b',"id":1}\n')
+        self.assertEqual(self.receive()["code"], "protocol")
         self.assertEqual(self.proc.wait(timeout=20), 2)
 
     def test_message_before_hello_is_refused(self):

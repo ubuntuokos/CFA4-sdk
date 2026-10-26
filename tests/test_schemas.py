@@ -64,6 +64,10 @@ class ManifestSchema(unittest.TestCase):
                 broken[section][key] = value
                 self.assert_invalid(broken, why)
 
+        ok = copy.deepcopy(base)
+        ok["capability"]["languages"] = ["hu", "zh-Hans", "tlh", "art-x-dothrak"]
+        self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+
         broken = copy.deepcopy(base)
         del broken["capability"]["window"]
         self.assert_invalid(broken, "window scope without window")

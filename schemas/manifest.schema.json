@@ -45,7 +45,7 @@
           }
         },
         "languages": {
-          "description": "Languages handled, as BCP 47 tags (en, zh-Hans, hu). Absent means language-independent. The host picks an implementation per segment language.",
+          "description": "Languages handled, as BCP 47 tags (en, zh-Hans, hu; constructed languages by ISO 639-3 code such as tlh or qya, else art-x-<name>). Absent means language-independent. The host picks an implementation per segment language.",
           "type": "array",
           "minItems": 1,
           "maxItems": 512,

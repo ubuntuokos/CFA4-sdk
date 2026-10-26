@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+manifest_version = 1
+
+[capability]
+id        = "AU-010"
+impl      = "tts-piper"
+version   = "0.1.0"
+family    = "M13"
+name      = "Beszédgenerálás (Piper-hangok)"
+shape     = "text->audio"
+scope     = "clip"
+languages = ["hu", "en", "de"]
+edition   = "free"
+
+[runtime]
+kind      = "onnx"
+providers = ["cpu", "cuda"]
+precision = ["fp32"]
+protocol  = 1
+
+[io]
+inputs  = [{ name = "text", type = "text" }]
+outputs = [{ name = "speech", type = "audio" }]
+
+[resources]
+vram_mb = { "1080p" = 0 }
+ram_mb  = 400
+load_ms = 300
+
+[behavior]
+deterministic = true
+seedable      = false
+cancellable   = "chunk"
+checkpoint    = false
+
+[[weights]]
+file    = "piper/hu_HU-voice-medium.onnx"
+sha256  = "0000000000000000000000000000000000000000000000000000000000000000"
+size_mb = 63
+
+[license]
+code       = "MIT"
+model      = "LicenseRef-per-voice"
+commercial = false
+notes      = "Every Piper voice has its own licence; check each one before marking it commercial."

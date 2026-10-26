@@ -14,9 +14,9 @@
       "required": ["id", "impl", "version", "shape", "scope"],
       "properties": {
         "id": {
-          "description": "Functional type from the 200-type list, e.g. AI-073.",
+          "description": "Functional type: AI-nnn from the 200-type list (video, image), AU-nnn from the audio list.",
           "type": "string",
-          "pattern": "^AI-[0-9]{3}$"
+          "pattern": "^A[IU]-[0-9]{3}$"
         },
         "impl": { "$ref": "#/$defs/slug" },
         "version": {
@@ -24,9 +24,9 @@
           "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
         },
         "family": {
-          "description": "Engine family M1-M12.",
+          "description": "Engine family M1-M15.",
           "type": "string",
-          "pattern": "^M([1-9]|1[0-2])$"
+          "pattern": "^M([1-9]|1[0-5])$"
         },
         "name": { "type": "string", "minLength": 1, "maxLength": 120 },
         "shape": {
@@ -43,6 +43,14 @@
             "before": { "type": "integer", "minimum": 0, "maximum": 1024 },
             "after": { "type": "integer", "minimum": 0, "maximum": 1024 }
           }
+        },
+        "languages": {
+          "description": "Languages handled, as BCP 47 tags (en, zh-Hans, hu). Absent means language-independent. The host picks an implementation per segment language.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{1,8})*$" }
         },
         "edition": {
           "description": "Informational only; the core never enforces it.",

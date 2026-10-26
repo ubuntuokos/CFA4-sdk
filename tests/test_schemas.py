@@ -52,6 +52,11 @@ class ManifestSchema(unittest.TestCase):
             "bad resolution key": ("resources", "vram_mb", {"huge": 100}),
             "negative VRAM": ("resources", "vram_mb", {"1080p": -1}),
             "commercial flag missing type": ("license", "commercial", "yes"),
+            "family outside M1-M15": ("capability", "family", "M16"),
+            "id with unknown list prefix": ("capability", "id", "AX-010"),
+            "language not a BCP 47 tag": ("capability", "languages", ["Hungarian"]),
+            "duplicate language": ("capability", "languages", ["hu", "hu"]),
+            "empty language list": ("capability", "languages", []),
         }
         for why, (section, key, value) in cases.items():
             with self.subTest(why):

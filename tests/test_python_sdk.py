@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 import uuid
 from pathlib import Path
@@ -98,6 +99,32 @@ class Codec(unittest.TestCase):
                      b"\xff\xfe", b"[" * 100000, b"not json"]:
             with self.subTest(line=line[:40]), self.assertRaises(ProtocolError):
                 decode(line)
+
+    def test_numbers_compare_as_json_values(self):
+        caps = {"type": "caps", "id": 0, "reply_to": 0, "protocol": 1,
+                "worker": {"name": "w", "version": "1"}, "impls": ["a"],
+                "limits": {"max_jobs": 1}, "devices": [0, 0.0]}
+        self.assertFalse(Draft202012Validator(SCHEMA).is_valid(caps))
+        with self.assertRaises(ProtocolError):
+            decode(json.dumps(caps))
+
+    def test_unpaired_surrogates_are_rejected(self):
+        for line in ['{"type":"shutdown","id":1,"\\ud800":0}',
+                     '{"type":"error","id":1,"code":"crash","message":"\\udfff"}']:
+            with self.subTest(line=line), self.assertRaises(ProtocolError) as e:
+                decode(line)
+            self.assertEqual(e.exception.code, "json")
+        with self.assertRaises(ProtocolError):
+            encode({"type": "error", "id": 1, "code": "crash", "message": "\ud800"})
+
+    def test_integral_floats_become_ints(self):
+        run = jsonl("session.jsonl")[4]
+        line = json.dumps(run).replace('"offset": 0', '"offset": 0.0').replace('"stride": 5760', '"stride": 5760.0')
+        decoded = decode(line)
+        self.assertEqual(type(decoded["inputs"]["src"]["offset"]), int)
+        self.assertEqual(type(decoded["inputs"]["src"]["stride"]), int)
+        params = decode(line.replace('"refine": true', '"scale": 2.0'))["params"]
+        self.assertEqual(type(params["scale"]), float)
 
     def test_field_of_a_validation_error(self):
         with self.assertRaises(ProtocolError) as e:
@@ -205,6 +232,21 @@ class ExampleWorkerSession(unittest.TestCase):
         with open(f"/dev/shm/{dst[1:]}", "rb") as f:
             self.assertEqual(f.read(), bytes(255 - b for b in pixels))
 
+        # The job slot (max_jobs = 2) is free as soon as the reply arrives: run back to back.
+        for i in range(4):
+            self.run_job(f"k-{i}", src, dst, frames=3)
+            self.assertEqual(self.receive("progress")["type"], "result")
+        self.run_job("k-a", src, dst, frames=3)
+        self.run_job("k-b", src, dst, frames=3)
+        replies = [self.receive("progress"), self.receive("progress")]
+        self.assertEqual(sorted(r["type"] for r in replies), ["result", "result"])
+
+        # Frame counts must match.
+        self.send({"type": "run", "id": 0, "job": "j-f", "impl": "invert-rgb8", "device": "cpu",
+                   "inputs": {"src": self.frame_buffer(src, 12, 1)},
+                   "outputs": {"out": self.frame_buffer(dst, 36, 3)}, "params": {}, "tier": "final"})
+        self.assertEqual(self.receive("progress")["code"], "invalid_input")
+
         # A buffer outside its segment is invalid input, and the worker keeps serving.
         short = self.segment(bytes(4))
         self.run_job("j-2", short, dst)
@@ -231,10 +273,54 @@ class ExampleWorkerSession(unittest.TestCase):
         self.assertEqual((error["type"], error["code"]), ("error", "protocol"))
         self.assertEqual(self.proc.wait(timeout=20), 2)
 
+    def test_unpaired_surrogate_gets_a_protocol_error(self):
+        self.handshake()
+        self.conn.sendall(b'{"type":"shutdown","id":1,"\\ud800":0}\n')
+        error = self.receive()
+        self.assertEqual((error["type"], error["code"]), ("error", "protocol"))
+        self.assertEqual(self.proc.wait(timeout=20), 2)
+
     def test_message_before_hello_is_refused(self):
         self.send({"type": "shutdown", "id": 0})
         self.assertEqual(self.receive()["code"], "protocol")
         self.assertEqual(self.proc.wait(timeout=20), 2)
+
+
+class UnloadFailure(unittest.TestCase):
+    """A failed unload keeps the model listed, so the host can retry."""
+
+    def test_failed_unload_keeps_residency(self):
+        from cfa4_ai.worker import _Loop
+
+        class Flaky(cfa4_ai.Worker):
+            impls = ("m",)
+            fail = True
+
+            def load(self, impl, device, precision, weights_dir):
+                return 10
+
+            def unload(self, impl, device):
+                if Flaky.fail:
+                    Flaky.fail = False
+                    raise RuntimeError("driver busy")
+
+        host, worker = socket.socketpair()
+        thread = threading.Thread(target=lambda: _Loop(Flaky(), worker).serve(), daemon=True)
+        thread.start()
+        reader = cfa4_ai.MessageReader(host.makefile("rb"))
+        for message in [{"type": "hello", "id": 0, "protocol": {"min": 1, "max": 1}, "host": "t"},
+                        {"type": "load", "id": 1, "impl": "m", "device": "cpu"},
+                        {"type": "unload", "id": 2, "impl": "m"}]:
+            host.sendall(encode(message))
+        self.assertEqual([reader.next_message()["type"] for _ in range(2)], ["caps", "loaded"])
+        error, stats = reader.next_message(), reader.next_message()
+        self.assertEqual((error["code"], stats["loaded"][0]["impl"]), ("model_error", "m"))
+        host.sendall(encode({"type": "unload", "id": 3, "impl": "m"}))
+        self.assertEqual(reader.next_message()["loaded"], [])
+        host.sendall(encode({"type": "shutdown", "id": 4}))
+        thread.join(timeout=10)
+        host.close()
+        worker.close()
 
 
 if __name__ == "__main__":

@@ -54,6 +54,38 @@ def _no_constant(name):
     raise ProtocolError("json", f"{name} is not JSON")
 
 
+def _check_text(value, path="$"):
+    """Rejects unpaired surrogates (``"\\ud800"``), which are not Unicode text."""
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            raise ProtocolError("json", f"{path}: unpaired surrogate in a string") from None
+    elif isinstance(value, list):
+        for item in value:
+            _check_text(item, path)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _check_text(key, path)
+            _check_text(item, path)
+
+
+_FREE_FORM = {"params", "metrics"}
+
+
+def _integral(value, key=None):
+    """Turns schema-valid integral floats (``0.0``) into ints, outside free-form objects."""
+    if key in _FREE_FORM:
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, list):
+        return [_integral(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _integral(v, k) for k, v in value.items()}
+    return value
+
+
 def validate(message):
     """Raises ``ProtocolError`` unless ``message`` matches the schema."""
     for path, reason in _validator.errors(message):
@@ -74,12 +106,14 @@ def decode(line):
         )
     except (UnicodeDecodeError, ValueError, RecursionError) as e:
         raise ProtocolError("json", f"malformed message: {e}") from None
+    _check_text(message)
     validate(message)
-    return message
+    return _integral(message)
 
 
 def encode(message):
     """Validates and serializes one message as a line ending in ``\\n``."""
+    _check_text(message)
     validate(message)
     line = json.dumps(message, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
     data = line.encode("utf-8") + b"\n"

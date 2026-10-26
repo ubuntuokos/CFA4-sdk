@@ -8,7 +8,6 @@ schema change cannot be silently ignored. ``tests/test_python_sdk.py`` checks
 that it agrees with the reference ``jsonschema`` package.
 """
 
-import json
 import re
 
 _ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description"}
@@ -43,8 +42,21 @@ def _is_type(value, name):
     raise SchemaError(f"unknown type {name!r}")
 
 
+def _canonical(value):
+    """A hashable form in which JSON-equal values are equal (``1 == 1.0``, ``true != 1``)."""
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return (type(value).__name__, value)
+    if isinstance(value, (int, float)):
+        return ("number", int(value) if isinstance(value, float) and value.is_integer() else value)
+    if isinstance(value, list):
+        return ("array", tuple(_canonical(v) for v in value))
+    if isinstance(value, dict):
+        return ("object", tuple(sorted((k, _canonical(v)) for k, v in value.items())))
+    raise SchemaError(f"not a JSON value: {type(value).__name__}")
+
+
 def _json_equal(a, b):
-    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    return _canonical(a) == _canonical(b)
 
 
 class Validator:
@@ -150,7 +162,7 @@ class Validator:
         if schema.get("uniqueItems"):
             seen = set()
             for item in value:
-                key = json.dumps(item, sort_keys=True)
+                key = _canonical(item)
                 if key in seen:
                     yield path, "items must be unique"
                     break

@@ -32,6 +32,8 @@ class InvertWorker(Worker):
         if (src["width"], src["height"], src["stride"]) != (dst["width"], dst["height"], dst["stride"]):
             raise WorkerError("invalid_input", "input and output geometry differ")
         frames = src.get("frames", 1)
+        if dst.get("frames", 1) != frames:
+            raise WorkerError("invalid_input", "input and output frame counts differ")
         frame_len = src["stride"] * src["height"]
         if frame_len * frames > min(src["len"], dst["len"]):
             raise WorkerError("invalid_input", "buffers are shorter than their frames")

@@ -106,14 +106,15 @@ class _Loop:
             self.next_id = min(self.next_id + 1, MAX_SAFE_INTEGER)
             try:
                 data = encode(message)
-            except ProtocolError as e:
+            except (ProtocolError, TypeError, ValueError) as e:
                 data = encode({"type": "error", "id": message["id"], "code": "crash",
                                "message": f"worker built an invalid message: {e}"[:2000],
                                "retryable": True})
             self.sock.sendall(data)
 
     def error(self, code, text, reply_to=None, job=None):
-        message = {"type": "error", "id": 0, "code": code, "message": str(text)[:2000],
+        text = str(text).encode("utf-8", "replace").decode("utf-8")[:2000]
+        message = {"type": "error", "id": 0, "code": code, "message": text,
                    "retryable": code in _RETRYABLE}
         if reply_to is not None:
             message["reply_to"] = reply_to
@@ -175,8 +176,9 @@ class _Loop:
         for key in keys:
             try:
                 self.worker.unload(impl, self.loaded[key]["device"])
-            except Exception as e:
+            except Exception as e:  # the model stays resident, so a later unload can retry
                 self.error(_error_code(e, during_load=False), e, m["id"])
+                continue
             self.loaded.pop(key, None)
         self.send({"type": "stats", "id": 0, "reply_to": m["id"],
                    "loaded": list(self.loaded.values())})
@@ -211,41 +213,50 @@ class _Loop:
 
     def run_job(self, job):
         m = job.message
-        started = time.monotonic()
         try:
-            try:
-                for name, buffer in m["inputs"].items():
-                    job.inputs[name] = MappedBuffer(buffer, writable=False)
-                for name, buffer in m["outputs"].items():
-                    job.outputs[name] = MappedBuffer(buffer, writable=True)
-            except (OSError, ValueError, ProtocolError) as e:
-                raise WorkerError("invalid_input", f"cannot map buffer: {e}") from None
-            views = job.inputs, job.outputs
-            job.inputs = {k: v.view for k, v in views[0].items()}
-            job.outputs = {k: v.view for k, v in views[1].items()}
-            try:
-                metrics = self.worker.run(job) or {}
-            finally:
-                job.inputs, job.outputs = views
-            if job.cancelled:
-                self.error("cancelled", "cancelled by host", m["id"], job.id)
-                return
-            metrics = dict(metrics)
-            metrics.setdefault("elapsed_ms", int((time.monotonic() - started) * 1000))
-            self.send({"type": "result", "id": 0, "reply_to": m["id"], "job": job.id,
-                       "outputs": m["outputs"], "metrics": metrics})
+            reply = self.execute(job)
         except Exception as e:
             code = "cancelled" if job.cancelled else _error_code(e, during_load=False)
-            try:
-                self.error(code, e, m["id"], job.id)
-            except OSError:
-                pass
+            reply = ("error", code, e)
         finally:
+            # Free the mappings and the job slot before the host can see the outcome,
+            # so it may send the next chunk as soon as it reads the reply.
             for mapped in [*job.inputs.values(), *job.outputs.values()]:
                 if isinstance(mapped, MappedBuffer):
                     mapped.close()
             with self.jobs_lock:
                 self.jobs.pop(job.id, None)
+        try:
+            if reply[0] == "result":
+                self.send(reply[1])
+            else:
+                self.error(reply[1], reply[2], m["id"], job.id)
+        except OSError:
+            pass
+
+    def execute(self, job):
+        m = job.message
+        started = time.monotonic()
+        try:
+            for name, buffer in m["inputs"].items():
+                job.inputs[name] = MappedBuffer(buffer, writable=False)
+            for name, buffer in m["outputs"].items():
+                job.outputs[name] = MappedBuffer(buffer, writable=True)
+        except (OSError, ValueError, ProtocolError) as e:
+            raise WorkerError("invalid_input", f"cannot map buffer: {e}") from None
+        mapped = job.inputs, job.outputs
+        job.inputs = {k: v.view for k, v in mapped[0].items()}
+        job.outputs = {k: v.view for k, v in mapped[1].items()}
+        try:
+            metrics = self.worker.run(job) or {}
+        finally:
+            job.inputs, job.outputs = mapped
+        if job.cancelled:
+            return ("error", "cancelled", "cancelled by host")
+        metrics = dict(metrics)
+        metrics.setdefault("elapsed_ms", int((time.monotonic() - started) * 1000))
+        return ("result", {"type": "result", "id": 0, "reply_to": m["id"], "job": job.id,
+                           "outputs": m["outputs"], "metrics": metrics})
 
     def cancel_all(self):
         with self.jobs_lock:

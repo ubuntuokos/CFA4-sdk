@@ -82,3 +82,11 @@ A séma szigorú (`additionalProperties: false`), így egy elírt mezőnév már
 kiderül. Ebből következik, hogy minden protokollváltozás, egy új, nem kötelező mező is, új
 protokollverziót kap. A gazda egyszerre több verziót is támogathat, a közös verziót a
 `hello`/`caps` kézfogás választja ki.
+
+A manifest verzióját a `manifest_version` mező adja meg, és a séma minden támogatott verziót
+elfogad:
+
+| Verzió | Változás |
+|---|---|
+| 1 | Első változat: `AI-nnn` azonosítók, M1–M12 motorcsaládok |
+| 2 | `capability.languages` (BCP 47 nyelvcímkék), `AU-nnn` azonosítók a hanglistához, M13–M15 motorcsaládok |

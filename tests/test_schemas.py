@@ -54,9 +54,6 @@ class ManifestSchema(unittest.TestCase):
             "commercial flag missing type": ("license", "commercial", "yes"),
             "family outside M1-M15": ("capability", "family", "M16"),
             "id with unknown list prefix": ("capability", "id", "AX-010"),
-            "language not a BCP 47 tag": ("capability", "languages", ["Hungarian"]),
-            "duplicate language": ("capability", "languages", ["hu", "hu"]),
-            "empty language list": ("capability", "languages", []),
         }
         for why, (section, key, value) in cases.items():
             with self.subTest(why):
@@ -64,9 +61,43 @@ class ManifestSchema(unittest.TestCase):
                 broken[section][key] = value
                 self.assert_invalid(broken, why)
 
-        ok = copy.deepcopy(base)
-        ok["capability"]["languages"] = ["hu", "zh-Hans", "tlh", "art-x-dothrak"]
-        self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+        v2 = copy.deepcopy(base)
+        v2["manifest_version"] = 2
+        for tag in ["hu", "EN-US", "zh-Hans", "zh-Hant-TW", "tlh", "art-x-dothrak", "x-private",
+                    "de-CH-1996", "sl-rozaj-biske", "en-a-bbb-x-a-ccc"]:
+            with self.subTest(language=tag):
+                ok = copy.deepcopy(v2)
+                ok["capability"]["languages"] = [tag]
+                self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+        for tag in ["Hungarian", "en-a", "x", "en--us", "e", "en-x", "-en", "en-"]:
+            with self.subTest(bad_language=tag):
+                broken = copy.deepcopy(v2)
+                broken["capability"]["languages"] = [tag]
+                self.assert_invalid(broken, f"language tag {tag!r}")
+
+        for why, value in [("duplicate language", ["hu", "hu"]), ("empty language list", [])]:
+            with self.subTest(why):
+                broken = copy.deepcopy(v2)
+                broken["capability"]["languages"] = value
+                self.assert_invalid(broken, why)
+
+        broken = copy.deepcopy(base)
+        broken["manifest_version"] = 3
+        self.assert_invalid(broken, "unknown manifest version")
+
+        # Version 1 keeps its original rules.
+        for why, key, value in [("languages in v1", "languages", ["hu"]),
+                                ("AU id in v1", "id", "AU-010"),
+                                ("M13 in v1", "family", "M13")]:
+            with self.subTest(why):
+                broken = copy.deepcopy(base)
+                self.assertEqual(broken["manifest_version"], 1)
+                broken["capability"][key] = value
+                self.assert_invalid(broken, why)
+        for key, value in [("id", "AU-010"), ("family", "M15")]:
+            ok = copy.deepcopy(v2)
+            ok["capability"][key] = value
+            self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
 
         broken = copy.deepcopy(base)
         del broken["capability"]["window"]

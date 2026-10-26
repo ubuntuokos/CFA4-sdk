@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-manifest_version = 1
+manifest_version = 2
 
 [capability]
 id        = "AU-010"

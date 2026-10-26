@@ -2,19 +2,31 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/manifest.schema.json",
   "title": "CFA4 AI capability manifest",
-  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 1.",
+  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 2; version 1 (no languages, AI- ids, M1-M12) is still accepted.",
   "type": "object",
   "additionalProperties": false,
+  "if": { "properties": { "manifest_version": { "const": 1 } } },
+  "then": {
+    "properties": {
+      "capability": {
+        "properties": {
+          "id": { "pattern": "^AI-[0-9]{3}$" },
+          "family": { "pattern": "^M([1-9]|1[0-2])$" },
+          "languages": false
+        }
+      }
+    }
+  },
   "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
   "properties": {
-    "manifest_version": { "const": 1 },
+    "manifest_version": { "enum": [1, 2] },
     "capability": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "impl", "version", "shape", "scope"],
       "properties": {
         "id": {
-          "description": "Functional type: AI-nnn from the 200-type list (video, image), AU-nnn from the audio list.",
+          "description": "Functional type: AI-nnn from the 200-type list (video, image); AU-nnn from the audio list (version 2).",
           "type": "string",
           "pattern": "^A[IU]-[0-9]{3}$"
         },
@@ -24,7 +36,7 @@
           "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
         },
         "family": {
-          "description": "Engine family M1-M15.",
+          "description": "Engine family M1-M12; M13-M15 from version 2.",
           "type": "string",
           "pattern": "^M([1-9]|1[0-5])$"
         },
@@ -45,12 +57,12 @@
           }
         },
         "languages": {
-          "description": "Languages handled, as BCP 47 tags (en, zh-Hans, hu; constructed languages by ISO 639-3 code such as tlh or qya, else art-x-<name>). Absent means language-independent. The host picks an implementation per segment language.",
+          "description": "Version 2. Languages handled, as BCP 47 language tags (RFC 5646 syntax, case-insensitive; irregular grandfathered tags are not accepted) (en, zh-Hans, hu; constructed languages by ISO 639-3 code such as tlh or qya, else art-x-<name>). Absent means language-independent. The host picks an implementation per segment language.",
           "type": "array",
           "minItems": 1,
           "maxItems": 512,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{1,8})*$" }
+          "items": { "type": "string", "maxLength": 64, "pattern": "^(?:(?:[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,3}|[A-Za-z]{4,8})(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*(?:-[0-9A-WY-Za-wy-z](?:-[A-Za-z0-9]{2,8})+)*(?:-[Xx](?:-[A-Za-z0-9]{1,8})+)?|[Xx](?:-[A-Za-z0-9]{1,8})+)$" }
         },
         "edition": {
           "description": "Informational only; the core never enforces it.",

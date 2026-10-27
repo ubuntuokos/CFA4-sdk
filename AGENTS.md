@@ -14,4 +14,7 @@
 5. **Rust:** a `cfa4-ai-protocol` pontosan azt fogadja el, amit a séma: minden minta
    (`examples/messages/*.jsonl`) oda-vissza változatlan, minden hibás minta elutasított. Új
    függőség csak megengedő licenccel (`cargo deny check licenses`), `unsafe` tilos.
-6. **Commit:** egy feladatazonosító commitonként (`S1: …`), csak zöld állapot.
+6. **Python:** a `python/` csomagnak nem lehet függősége. A `protocol.schema.json` másolata
+   bájtra egyezik a `schemas/` alatti sémával, és a saját ellenőrzője ugyanazt fogadja el,
+   amit a `jsonschema` (`tests/test_python_sdk.py`).
+7. **Commit:** egy feladatazonosító commitonként (`S1: …`), csak zöld állapot.

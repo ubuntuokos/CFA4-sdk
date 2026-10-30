@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/host.schema.json",
+  "title": "CFA4 AI host report",
+  "description": "What the CFA4 host reports about AI jobs and implementation choice to its own UI, CLI, control channel and MCP. Version 1. Not part of the worker protocol: workers never send or receive these.",
+  "oneOf": [
+    { "$ref": "#/$defs/jobStatus" },
+    { "$ref": "#/$defs/routeDecision" }
+  ],
+  "$defs": {
+    "jobId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "impl": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "capability": {
+      "description": "Functional type from the manifest: AI-nnn or AU-nnn.",
+      "type": "string",
+      "pattern": "^A[IU]-[0-9]{3}$"
+    },
+    "time": {
+      "description": "RFC 3339 UTC timestamp.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "state": {
+      "description": "Job lifecycle. succeeded, failed and cancelled are final; blocked waits for the user (model, licence, hardware).",
+      "enum": [
+        "queued", "preparing_model", "waiting_for_resources", "loading", "running",
+        "cancelling", "succeeded", "failed", "cancelled", "blocked"
+      ]
+    },
+    "check": {
+      "description": "One condition the router or resource manager tested, and why it failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check", "detail"],
+      "properties": {
+        "check": {
+          "description": "capability: no implementation of the type; language: segment language not covered; license: unknown or non-commercial licence part; model: weights missing or hash mismatch; format: weight format not loadable at this gate; runtime: runtime or provider not installed; device: no suitable device (vendor, display GPU excluded); vram: not enough free VRAM; ram: not enough RAM; resolution: above the implementation's maximum.",
+          "enum": ["capability", "language", "license", "model", "format", "runtime", "device", "vram", "ram", "resolution"]
+        },
+        "need": { "description": "What the implementation requires, e.g. \"5800 MB\".", "type": "string", "maxLength": 120 },
+        "have": { "description": "What this machine offers, e.g. \"4100 MB free on GPU 0\".", "type": "string", "maxLength": 120 },
+        "detail": { "description": "One sentence for the user.", "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    },
+    "jobStatus": {
+      "description": "A job's state after every transition, as stored in the durable job store.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "job", "capability", "state", "at"],
+      "properties": {
+        "type": { "const": "job_status" },
+        "job": { "$ref": "#/$defs/jobId" },
+        "capability": { "$ref": "#/$defs/capability" },
+        "impl": { "description": "Absent until the router has chosen; required from loading on.", "$ref": "#/$defs/impl" },
+        "state": { "$ref": "#/$defs/state" },
+        "at": { "$ref": "#/$defs/time" },
+        "attempt": { "description": "1 for the first run, higher after a retry.", "type": "integer", "minimum": 1, "maximum": 100 },
+        "progress": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["done", "total"],
+          "properties": {
+            "done": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 1 },
+            "stage": { "type": "string", "maxLength": 64 }
+          }
+        },
+        "error": {
+          "description": "Only in state failed.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "enum": ["oom", "invalid_input", "model_error", "model_missing", "unsupported", "limit_reached", "protocol", "crash"]
+            },
+            "message": { "type": "string", "maxLength": 2000 },
+            "retryable": { "type": "boolean" }
+          }
+        },
+        "blocked": {
+          "description": "Only in state blocked: every condition that keeps the job from starting.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/check" }
+        },
+        "watermarked": {
+          "description": "In state succeeded: the worker put a visible watermark on the output.",
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "failed" } } },
+          "then": { "required": ["error"] },
+          "else": { "properties": { "error": false } }
+        },
+        {
+          "if": { "properties": { "state": { "const": "blocked" } } },
+          "then": { "required": ["blocked"] },
+          "else": { "properties": { "blocked": false } }
+        },
+        {
+          "if": { "properties": { "state": { "const": "succeeded" } } },
+          "else": { "properties": { "watermarked": false } }
+        },
+        {
+          "if": { "properties": { "state": { "enum": ["loading", "running", "succeeded"] } } },
+          "then": { "required": ["impl"] }
+        }
+      ]
+    },
+    "routeDecision": {
+      "description": "What would run for a request and why, answered without running anything. Every candidate implementation is listed with the conditions it failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "capability", "request", "chosen", "candidates"],
+      "properties": {
+        "type": { "const": "route_decision" },
+        "capability": { "$ref": "#/$defs/capability" },
+        "job": { "description": "Set when the decision was made for a job.", "$ref": "#/$defs/jobId" },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "width": { "type": "integer", "minimum": 1, "maximum": 16384 },
+            "height": { "type": "integer", "minimum": 1, "maximum": 16384 },
+            "language": { "description": "BCP 47 tag of the segment.", "type": "string", "maxLength": 64 },
+            "tier": { "enum": ["preview", "standard", "final"] },
+            "commercial": { "description": "The user needs commercial use.", "type": "boolean" }
+          }
+        },
+        "chosen": {
+          "description": "The implementation that would run, or null when none passes every check.",
+          "oneOf": [{ "$ref": "#/$defs/impl" }, { "type": "null" }]
+        },
+        "candidates": {
+          "description": "In the router's preference order.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate" }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["impl", "runtime", "ok", "failed"],
+      "properties": {
+        "impl": { "$ref": "#/$defs/impl" },
+        "runtime": { "enum": ["candle", "onnx", "python", "remote"] },
+        "worker": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+        "ok": { "description": "Every check passed.", "type": "boolean" },
+        "failed": { "type": "array", "items": { "$ref": "#/$defs/check" } },
+        "estimate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "vram_mb": { "type": "integer", "minimum": 0 },
+            "load_ms": { "type": "integer", "minimum": 0 },
+            "device": {
+              "description": "\"cpu\", or the PCI address or UUID of the GPU the resource manager would use.",
+              "type": "string",
+              "maxLength": 64
+            },
+            "watermark": { "description": "The output would carry a visible watermark.", "type": "boolean" }
+          }
+        }
+      },
+      "if": { "properties": { "ok": { "const": true } } },
+      "then": { "properties": { "failed": { "maxItems": 0 } } },
+      "else": { "properties": { "failed": { "minItems": 1 } } }
+    }
+  }
+}

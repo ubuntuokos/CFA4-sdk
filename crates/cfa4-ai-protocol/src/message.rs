@@ -262,6 +262,24 @@ pub struct Limits {
     /// Output-quality cap a paid worker enforces itself, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_output_height: Option<u32>,
+    /// Version 2: without a licence key, output taller than this carries a
+    /// visible watermark the worker adds itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watermark_above_height: Option<u32>,
+}
+
+/// Version 2: an optional behaviour a worker declares in [`Caps`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Feature {
+    /// Stops a run mid-chunk on `cancel`.
+    Cancel,
+    /// Sends `progress` messages.
+    Progress,
+    /// Honours tier `preview`.
+    Preview,
+    /// Continues a job from its last finished chunk.
+    Resume,
 }
 
 /// Worker -> host, answer to [`Hello`].
@@ -276,6 +294,13 @@ pub struct Caps {
     pub limits: Limits,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub devices: Option<Vec<Device>>,
+    /// Version 2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub features: Option<Vec<Feature>>,
+    /// Version 2: the implementation the host runs on exported frames that
+    /// contain this worker's output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_export: Option<String>,
 }
 
 /// Host -> worker: load an implementation's weights onto a device.

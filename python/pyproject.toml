@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cfa4-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "CFA4 AI worker SDK: protocol messages, validation, JSON-lines framing, shared memory and a worker loop"
 readme = "README.md"
 requires-python = ">=3.10"

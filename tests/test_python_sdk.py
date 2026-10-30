@@ -151,8 +151,10 @@ class Codec(unittest.TestCase):
         self.assertEqual(e.exception.code, "line_too_long")
 
     def test_negotiation(self):
-        self.assertEqual(cfa4_ai.negotiate(1, 3), 1)
-        self.assertIsNone(cfa4_ai.negotiate(2, 3))
+        self.assertEqual(cfa4_ai.negotiate(1, 3), 2)
+        self.assertEqual(cfa4_ai.negotiate(1, 1), 1)
+        self.assertEqual(cfa4_ai.negotiate(2, 3), 2)
+        self.assertIsNone(cfa4_ai.negotiate(3, 4))
         self.assertIsNone(cfa4_ai.negotiate(0, 0, 0, 1))
         self.assertTrue(cfa4_ai.accepts(1, 3, 1))
         self.assertFalse(cfa4_ai.accepts(0, 1, 0))
@@ -217,9 +219,10 @@ class ExampleWorkerSession(unittest.TestCase):
                 "height": 2, "stride": 6, "frames": frames, "format": "rgb8"}
 
     def handshake(self):
-        self.send({"type": "hello", "id": 0, "protocol": {"min": 1, "max": 1}, "host": "test"})
+        self.send({"type": "hello", "id": 0, "protocol": {"min": 1, "max": 2}, "host": "test"})
         caps = self.receive()
-        self.assertEqual((caps["type"], caps["protocol"], caps["impls"]), ("caps", 1, ["invert-rgb8"]))
+        self.assertEqual((caps["type"], caps["protocol"], caps["impls"]), ("caps", 2, ["invert-rgb8"]))
+        self.assertEqual(caps["features"], ["cancel", "progress"])
         self.send({"type": "load", "id": 0, "impl": "invert-rgb8", "device": "cpu"})
         self.assertEqual(self.receive()["type"], "loaded")
 
@@ -297,6 +300,60 @@ class ExampleWorkerSession(unittest.TestCase):
         self.send({"type": "shutdown", "id": 0})
         self.assertEqual(self.receive()["code"], "protocol")
         self.assertEqual(self.proc.wait(timeout=20), 2)
+
+
+class CapsVersions(unittest.TestCase):
+    """Version 2 caps fields are sent only when version 2 is negotiated."""
+
+    class Paid(cfa4_ai.Worker):
+        impls = ("upscale", "watermark")
+        limits = {"max_jobs": 1, "watermark_above_height": 1080}
+        features = ("cancel", "progress")
+        post_export = "watermark"
+
+    def caps_for(self, host_max):
+        from cfa4_ai.worker import _Loop
+
+        host, worker = socket.socketpair()
+        thread = threading.Thread(target=lambda: _Loop(self.Paid(), worker).serve(), daemon=True)
+        thread.start()
+        reader = cfa4_ai.MessageReader(host.makefile("rb"))
+        host.sendall(encode({"type": "hello", "id": 0, "protocol": {"min": 1, "max": host_max},
+                             "host": "t"}))
+        caps = reader.next_message()
+        host.sendall(encode({"type": "shutdown", "id": 1}))
+        thread.join(timeout=10)
+        host.close()
+        worker.close()
+        return caps
+
+    def test_version_2(self):
+        caps = self.caps_for(2)
+        self.assertEqual(caps["protocol"], 2)
+        self.assertEqual(caps["features"], ["cancel", "progress"])
+        self.assertEqual(caps["post_export"], "watermark")
+        self.assertEqual(caps["limits"]["watermark_above_height"], 1080)
+
+    def test_version_1_host(self):
+        caps = self.caps_for(1)
+        self.assertEqual(caps["protocol"], 1)
+        self.assertNotIn("features", caps)
+        self.assertNotIn("post_export", caps)
+        self.assertEqual(caps["limits"], {"max_jobs": 1})
+        self.assertEqual(self.Paid.limits["watermark_above_height"], 1080)
+
+    def test_version_1_rejects_version_2_fields(self):
+        caps = {"type": "caps", "id": 0, "reply_to": 0, "protocol": 1,
+                "worker": {"name": "w", "version": "1"}, "impls": ["a"],
+                "limits": {"max_jobs": 1}}
+        decode(json.dumps(caps))
+        for key, value in [("features", ["cancel"]), ("post_export", "a")]:
+            with self.subTest(key):
+                with self.assertRaises(ProtocolError):
+                    decode(json.dumps({**caps, key: value}))
+        with self.assertRaises(ProtocolError):
+            decode(json.dumps({**caps, "limits": {"max_jobs": 1, "watermark_above_height": 1}}))
+        decode(json.dumps({**caps, "protocol": 2, "features": ["cancel"], "post_export": "a"}))
 
 
 class UnloadFailure(unittest.TestCase):

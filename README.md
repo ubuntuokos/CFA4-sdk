@@ -8,10 +8,11 @@ tartalmaz belőle kódot.
 
 | Hely | Tartalom |
 |---|---|
-| [`docs/protocol.md`](docs/protocol.md) | A gazda és a worker közötti JSON-lines protokoll, 1. változat |
+| [`docs/protocol.md`](docs/protocol.md) | A gazda és a worker közötti JSON-lines protokoll, 2. változat (az 1. is érvényes) |
 | [`schemas/protocol.schema.json`](schemas/protocol.schema.json) | A protokoll üzeneteinek JSON Schemája |
-| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája |
-| [`examples/`](examples) | Mintamanifestek és egy teljes mintabeszélgetés |
+| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája, 3. változat (négy licencmező, rögzített súlyforrás) |
+| [`schemas/host.schema.json`](schemas/host.schema.json) | Amit a CFA4 a saját felületének, CLI-jének és MCP-jének jelent: a jobállapotok (10 állapot) és a „mi futna és miért” útválasztási döntés |
+| [`examples/`](examples) | Mintamanifestek, egy teljes mintabeszélgetés és gazdajelentések |
 | [`crates/cfa4-ai-protocol`](crates/cfa4-ai-protocol) | Rust crate: üzenettípusok, érvényesség-ellenőrzés, JSON-lines kódolás, verzióegyeztetés |
 | [`python/`](python) | Python csomag (`cfa4-ai`): ugyanez Pythonban, függőség nélkül, plusz osztott memória és worker-hurok, mintaworkerrel |
 | [`tests/`](tests) | A sémák és a minták ellenőrzése |

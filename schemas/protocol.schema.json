@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/protocol.schema.json",
   "title": "CFA4 AI worker protocol message",
-  "description": "One JSON-lines message between the CFA4 host and a worker. Protocol version 1. Frames travel in shared memory; messages only reference them.",
+  "description": "One JSON-lines message between the CFA4 host and a worker. Protocol version 2; version 1 (no caps.features, caps.post_export or caps.limits.watermark_above_height) is still accepted. Frames travel in shared memory; messages only reference them.",
   "oneOf": [
     { "$ref": "#/$defs/hello" },
     { "$ref": "#/$defs/caps" },
@@ -131,10 +131,33 @@
               "description": "Output-quality cap a paid worker enforces itself, if any.",
               "type": "integer",
               "minimum": 1
+            },
+            "watermark_above_height": {
+              "description": "Version 2. Without a licence key, output taller than this many pixels carries a visible watermark the worker adds itself.",
+              "type": "integer",
+              "minimum": 1
             }
           }
         },
-        "devices": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/device" } }
+        "devices": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/device" } },
+        "features": {
+          "description": "Version 2. Optional behaviours the worker supports; the host offers only these. cancel: stops a run mid-chunk; progress: sends progress; preview: honours tier preview; resume: continues a job from its last finished chunk.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["cancel", "progress", "preview", "resume"] }
+        },
+        "post_export": {
+          "description": "Version 2. One of impls: the host runs it on every exported frame that contains this worker's output, after export and before the file is final.",
+          "$ref": "#/$defs/impl"
+        }
+      },
+      "if": { "properties": { "protocol": { "const": 1 } } },
+      "then": {
+        "properties": {
+          "features": false,
+          "post_export": false,
+          "limits": { "properties": { "watermark_above_height": false } }
+        }
       }
     },
     "load": {

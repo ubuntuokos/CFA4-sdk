@@ -82,7 +82,7 @@ class ManifestSchema(unittest.TestCase):
                 self.assert_invalid(broken, why)
 
         broken = copy.deepcopy(base)
-        broken["manifest_version"] = 3
+        broken["manifest_version"] = 4
         self.assert_invalid(broken, "unknown manifest version")
 
         # Version 1 keeps its original rules.
@@ -114,6 +114,64 @@ class ManifestSchema(unittest.TestCase):
         broken = copy.deepcopy(base)
         broken["capability"]["surprise"] = 1
         self.assert_invalid(broken, "unknown key")
+
+    def test_version_3_licence_and_weights(self):
+        manifests = dict(self.manifests())
+        v3 = manifests[EXAMPLES / "manifests" / "vsr-onnx.toml"]
+        self.assertEqual(v3["manifest_version"], 3)
+
+        # The old licence and old weights are not version 3, and the reverse.
+        v1 = manifests[EXAMPLES / "manifests" / "bgswap-onnx.toml"]
+        for why, version, source in [("v1 licence in v3", 3, v1), ("v3 licence in v2", 2, v3)]:
+            with self.subTest(why):
+                broken = copy.deepcopy(v3)
+                broken["manifest_version"] = version
+                broken["license"] = copy.deepcopy(source["license"])
+                if version == 2:
+                    broken["weights"] = copy.deepcopy(v1["weights"])
+                self.assert_invalid(broken, why)
+        broken = copy.deepcopy(v3)
+        broken["manifest_version"] = 2
+        broken["license"] = copy.deepcopy(v1["license"])
+        self.assert_invalid(broken, "v3 weight fields in v2")
+        del broken["weights"]
+        self.assertEqual([e.message for e in self.validator.iter_errors(broken)], [])
+
+        for part in ["code", "dependencies", "weights", "dataset"]:
+            with self.subTest(missing=part):
+                broken = copy.deepcopy(v3)
+                del broken["license"][part]
+                self.assert_invalid(broken, f"licence part {part} missing")
+            with self.subTest(boolean_commercial=part):
+                broken = copy.deepcopy(v3)
+                broken["license"][part]["commercial"] = True
+                self.assert_invalid(broken, "commercial must be yes, no or unknown")
+            with self.subTest(empty_spdx=part):
+                broken = copy.deepcopy(v3)
+                broken["license"][part]["spdx"] = ""
+                self.assert_invalid(broken, "empty SPDX expression")
+
+        for key in ["url", "revision", "format"]:
+            with self.subTest(missing_weight=key):
+                broken = copy.deepcopy(v3)
+                del broken["weights"][0][key]
+                self.assert_invalid(broken, f"weights without {key}")
+        for revision in ["main", "master", "latest", "HEAD", "a/b", ""]:
+            with self.subTest(revision=revision):
+                broken = copy.deepcopy(v3)
+                broken["weights"][0]["revision"] = revision
+                self.assert_invalid(broken, f"moving or malformed revision {revision!r}")
+        for fmt in ["onnx", "safetensors", "gguf", "pt", "bin", "ckpt"]:
+            with self.subTest(format=fmt):
+                ok = copy.deepcopy(v3)
+                ok["weights"][0]["format"] = fmt
+                self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+        broken = copy.deepcopy(v3)
+        broken["weights"][0]["format"] = "pickle"
+        self.assert_invalid(broken, "unknown weight format")
+        broken = copy.deepcopy(v3)
+        broken["weights"][0]["file"] = "../model.onnx"
+        self.assert_invalid(broken, "v3 weights path escaping the model folder")
 
 
 class ProtocolSchema(unittest.TestCase):
@@ -155,6 +213,47 @@ class ProtocolSchema(unittest.TestCase):
         for n, message in enumerate(jsonl(EXAMPLES / "messages" / "invalid.jsonl"), 1):
             with self.subTest(line=n, type=message.get("type")):
                 self.assertFalse(self.validator.is_valid(message))
+
+
+class HostSchema(unittest.TestCase):
+    validator = load_schema("host.schema.json")
+
+    def reports(self):
+        return jsonl(EXAMPLES / "host" / "reports.jsonl")
+
+    def test_examples_are_valid(self):
+        for n, report in enumerate(self.reports(), 1):
+            with self.subTest(line=n, type=report.get("type")):
+                errors = [e.message for e in self.validator.iter_errors(report)]
+                self.assertEqual(errors, [])
+
+    def test_examples_cover_every_state_and_property(self):
+        defs = self.validator.schema["$defs"]
+        reports = self.reports()
+        statuses = [r for r in reports if r["type"] == "job_status"]
+        routes = [r for r in reports if r["type"] == "route_decision"]
+        self.assertEqual({s["state"] for s in statuses}, set(defs["state"]["enum"]))
+        self.assertEqual(set(defs["jobStatus"]["properties"]), set().union(*statuses))
+        self.assertEqual(set(defs["routeDecision"]["properties"]), set().union(*routes))
+        candidates = [c for r in routes for c in r["candidates"]]
+        self.assertEqual(set(defs["candidate"]["properties"]), set().union(*candidates))
+        checks = [c for x in candidates for c in x["failed"]] + [
+            c for s in statuses for c in s.get("blocked", [])]
+        self.assertEqual(set(defs["check"]["properties"]), set().union(*checks))
+
+    def test_chosen_is_a_passing_candidate(self):
+        for n, route in enumerate(r for r in self.reports() if r["type"] == "route_decision"):
+            with self.subTest(route=n):
+                passing = [c["impl"] for c in route["candidates"] if c["ok"]]
+                if route["chosen"] is None:
+                    self.assertEqual(passing, [])
+                else:
+                    self.assertEqual(route["chosen"], passing[0])
+
+    def test_invalid_reports_are_rejected(self):
+        for n, report in enumerate(jsonl(EXAMPLES / "host" / "invalid.jsonl"), 1):
+            with self.subTest(line=n, type=report.get("type")):
+                self.assertFalse(self.validator.is_valid(report))
 
 
 if __name__ == "__main__":

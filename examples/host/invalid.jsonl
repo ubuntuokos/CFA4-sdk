@@ -1,0 +1,19 @@
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"failed","at":"2026-10-30T12:00:00Z","impl":"a"}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"blocked","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"blocked","at":"2026-10-30T12:00:00Z","blocked":[]}
+{"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"running","at":"2026-10-30T12:00:00Z","error":{"code":"oom","message":"x"}}
+{"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"running","at":"2026-10-30T12:00:00Z","blocked":[{"check":"vram","detail":"x"}]}
+{"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"running","at":"2026-10-30T12:00:00Z","watermarked":true}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"running","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"paused","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"queued","at":"2026-10-30 12:00:00"}
+{"type":"job_status","job":"j 1","capability":"AI-091","state":"queued","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-91","state":"queued","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"failed","at":"2026-10-30T12:00:00Z","error":{"code":"cancelled","message":"cancelled is a state"}}
+{"type":"route_decision","capability":"AI-091","request":{},"chosen":"a","candidates":[{"impl":"a","runtime":"onnx","ok":true,"failed":[{"check":"vram","detail":"x"}]}]}
+{"type":"route_decision","capability":"AI-091","request":{},"chosen":null,"candidates":[{"impl":"a","runtime":"onnx","ok":false,"failed":[]}]}
+{"type":"route_decision","capability":"AI-091","request":{},"chosen":null,"candidates":[{"impl":"a","runtime":"onnx","ok":false,"failed":[{"check":"weather","detail":"x"}]}]}
+{"type":"route_decision","capability":"AI-091","request":{},"chosen":null,"candidates":[{"impl":"a","runtime":"onnx","ok":false,"failed":[{"check":"vram"}]}]}
+{"type":"route_decision","capability":"AI-091","request":{},"candidates":[]}
+{"type":"route_decision","capability":"AI-091","request":{"fps":24},"chosen":null,"candidates":[]}
+{"type":"queue_report","job":"j-1"}

@@ -2,24 +2,43 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/manifest.schema.json",
   "title": "CFA4 AI capability manifest",
-  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 2; version 1 (no languages, AI- ids, M1-M12) is still accepted.",
+  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 3; versions 1 (no languages, AI- ids, M1-M12) and 2 (one-field licence, weights without url, revision and format) are still accepted.",
   "type": "object",
   "additionalProperties": false,
-  "if": { "properties": { "manifest_version": { "const": 1 } } },
-  "then": {
-    "properties": {
-      "capability": {
+  "allOf": [
+    {
+      "if": { "properties": { "manifest_version": { "const": 1 } } },
+      "then": {
         "properties": {
-          "id": { "pattern": "^AI-[0-9]{3}$" },
-          "family": { "pattern": "^M([1-9]|1[0-2])$" },
-          "languages": false
+          "capability": {
+            "properties": {
+              "id": { "pattern": "^AI-[0-9]{3}$" },
+              "family": { "pattern": "^M([1-9]|1[0-2])$" },
+              "languages": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "manifest_version": { "const": 3 } } },
+      "then": {
+        "properties": {
+          "license": { "$ref": "#/$defs/licenseV3" },
+          "weights": { "items": { "$ref": "#/$defs/weightV3" } }
+        }
+      },
+      "else": {
+        "properties": {
+          "license": { "$ref": "#/$defs/licenseV1" },
+          "weights": { "items": { "$ref": "#/$defs/weightV1" } }
         }
       }
     }
-  },
+  ],
   "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
   "properties": {
-    "manifest_version": { "enum": [1, 2] },
+    "manifest_version": { "enum": [1, 2, 3] },
     "capability": {
       "type": "object",
       "additionalProperties": false,
@@ -163,31 +182,13 @@
       }
     },
     "weights": {
-      "description": "Where the user obtains the model. CFA4 does not distribute models.",
+      "description": "Where the user obtains the model. CFA4 does not distribute models. Item shape depends on manifest_version.",
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["file", "sha256"],
-        "properties": {
-          "file": { "type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$", "not": { "pattern": "(^|/)\\.\\.(/|$)" } },
-          "url": { "type": "string", "pattern": "^https://" },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "size_mb": { "type": "integer", "minimum": 0 },
-          "precision": { "enum": ["fp32", "fp16", "bf16", "fp8", "int8", "int4"] }
-        }
-      }
+      "items": { "type": "object" }
     },
     "license": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["code", "model", "commercial"],
-      "properties": {
-        "code": { "description": "SPDX expression of the implementation code.", "type": "string", "minLength": 1 },
-        "model": { "description": "SPDX expression or LicenseRef of the weights.", "type": "string", "minLength": 1 },
-        "commercial": { "description": "Commercial use allowed by both code and model.", "type": "boolean" },
-        "notes": { "type": "string" }
-      }
+      "description": "Licence of the implementation. Shape depends on manifest_version.",
+      "type": "object"
     },
     "params": {
       "type": "object",
@@ -203,6 +204,93 @@
     }
   },
   "$defs": {
+    "weightFile": { "type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$", "not": { "pattern": "(^|/)\\.\\.(/|$)" } },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "weightPrecision": { "enum": ["fp32", "fp16", "bf16", "fp8", "int8", "int4"] },
+    "weightV1": {
+      "description": "Versions 1 and 2.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256"],
+      "properties": {
+        "file": { "$ref": "#/$defs/weightFile" },
+        "url": { "type": "string", "pattern": "^https://" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_mb": { "type": "integer", "minimum": 0 },
+        "precision": { "$ref": "#/$defs/weightPrecision" }
+      }
+    },
+    "weightV3": {
+      "description": "Version 3: a pinned, verifiable source.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256", "url", "revision", "format"],
+      "properties": {
+        "file": { "$ref": "#/$defs/weightFile" },
+        "url": { "type": "string", "pattern": "^https://" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "revision": {
+          "description": "Immutable revision of the source, e.g. a commit hash. Moving names are refused.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$",
+          "not": { "enum": ["main", "master", "latest", "HEAD", "head"] }
+        },
+        "format": {
+          "description": "File format. The host loads only onnx and safetensors before the PyTorch gate.",
+          "enum": ["onnx", "safetensors", "gguf", "pt", "bin", "ckpt"]
+        },
+        "variant": {
+          "description": "Variant of the same model, e.g. a quantization.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+        },
+        "size_mb": { "type": "integer", "minimum": 0 },
+        "precision": { "$ref": "#/$defs/weightPrecision" }
+      }
+    },
+    "licenseV1": {
+      "description": "Versions 1 and 2.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "model", "commercial"],
+      "properties": {
+        "code": { "description": "SPDX expression of the implementation code.", "type": "string", "minLength": 1 },
+        "model": { "description": "SPDX expression or LicenseRef of the weights.", "type": "string", "minLength": 1 },
+        "commercial": { "description": "Commercial use allowed by both code and model.", "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "licensePart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdx", "commercial"],
+      "properties": {
+        "spdx": {
+          "description": "SPDX expression, LicenseRef-..., or NOASSERTION when not known. NOASSERTION blocks.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "commercial": {
+          "description": "Whether this part allows commercial use. unknown blocks.",
+          "enum": ["yes", "no", "unknown"]
+        },
+        "url": { "description": "Where the licence text is.", "type": "string", "pattern": "^https://" }
+      }
+    },
+    "licenseV3": {
+      "description": "Version 3: four separately licensed parts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "dependencies", "weights", "dataset"],
+      "properties": {
+        "code": { "description": "The worker's own code.", "$ref": "#/$defs/licensePart" },
+        "dependencies": { "description": "The runtime and libraries the worker loads.", "$ref": "#/$defs/licensePart" },
+        "weights": { "description": "The model weights.", "$ref": "#/$defs/licensePart" },
+        "dataset": { "description": "The training data, as far as known.", "$ref": "#/$defs/licensePart" },
+        "notes": { "type": "string" }
+      }
+    },
     "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
     "resolutionKey": { "pattern": "^(360|480|540|720|1080|1440|2160|4320)p(@(fp32|fp16|bf16|fp8|int8|int4))?$" },
     "port": {

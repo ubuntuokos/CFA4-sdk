@@ -18,6 +18,7 @@ class InvertWorker(Worker):
     impls = ("invert-rgb8",)
     devices = ("cpu",)
     limits = {"max_jobs": 2}
+    features = ("cancel", "progress")
 
     def load(self, impl, device, precision, weights_dir):
         if device != "cpu":

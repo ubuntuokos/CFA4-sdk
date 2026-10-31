@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Protocol version 1: decoding, validation and JSON-lines framing.
+"""Protocol version 2 (version 1 still accepted): decoding, validation and JSON-lines framing.
 
 Messages are plain dicts shaped as in ``docs/protocol.md``. ``decode`` and
 ``encode`` accept exactly what ``protocol.schema.json`` accepts, like the Rust
@@ -11,7 +11,8 @@ from importlib import resources
 
 from ._schema import Validator
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
+MIN_PROTOCOL_VERSION = 1
 SOCKET_ENV = "CFA4_AI_SOCKET"
 SHM_PREFIX = "/cfa4-ai-"
 MAX_LINE_BYTES = 1 << 20
@@ -161,7 +162,7 @@ class MessageReader:
             yield message
 
 
-def negotiate(host_min, host_max, worker_min=PROTOCOL_VERSION, worker_max=PROTOCOL_VERSION):
+def negotiate(host_min, host_max, worker_min=MIN_PROTOCOL_VERSION, worker_max=PROTOCOL_VERSION):
     """The highest version both sides speak, or ``None``."""
     low = max(host_min, worker_min, 1)
     high = min(host_max, worker_max)

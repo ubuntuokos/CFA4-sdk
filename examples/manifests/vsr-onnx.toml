@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Manifest version 3: four licence parts, pinned weights. Placeholder values:
+# the model, URL, revision and hashes are not chosen yet (CFA4 gate F3).
+manifest_version = 3
+
+[capability]
+id      = "AI-091"
+impl    = "vsr-onnx"
+version = "0.1.0"
+family  = "M4"
+name    = "Videó-felskálázás"
+shape   = "clip->clip"
+scope   = "window"
+window  = { before = 2, after = 2 }
+edition = "free"
+
+[runtime]
+kind      = "onnx"
+providers = ["cuda", "cpu"]
+precision = ["fp16", "fp32"]
+protocol  = 2
+
+[io]
+inputs  = [{ name = "src", type = "frame", color = "rec709", format = "rgb8" }]
+outputs = [{ name = "out", type = "frame", color = "rec709", format = "rgb8" }]
+max_resolution = [2048, 1080]
+tiling = true
+
+[resources]
+vram_mb = { "720p@fp16" = 3000, "1080p@fp16" = 5800 }
+load_ms = 1200
+
+[tiers]
+preview = { scale = 0.5 }
+final   = { scale = 1.0 }
+
+[behavior]
+deterministic = true
+seedable      = false
+cancellable   = "chunk"
+checkpoint    = true
+
+[[weights]]
+file      = "vsr/model-fp16.onnx"
+url       = "https://example.invalid/vsr/model-fp16.onnx"
+revision  = "0000000000000000000000000000000000000000"
+format    = "onnx"
+variant   = "fp16"
+sha256    = "0000000000000000000000000000000000000000000000000000000000000000"
+size_mb   = 80
+precision = "fp16"
+
+[license]
+notes = "Example only: the host blocks this implementation until the weights and dataset licences are known."
+
+[license.code]
+spdx       = "MIT OR Apache-2.0"
+commercial = "yes"
+
+[license.dependencies]
+spdx       = "MIT"
+commercial = "yes"
+url        = "https://github.com/microsoft/onnxruntime/blob/main/LICENSE"
+
+[license.weights]
+spdx       = "NOASSERTION"
+commercial = "unknown"
+
+[license.dataset]
+spdx       = "NOASSERTION"
+commercial = "unknown"

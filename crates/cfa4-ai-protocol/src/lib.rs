@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! The CFA4 AI worker protocol, version 1: message types, validation and
-//! JSON-lines framing. The normative description is `docs/protocol.md` and
-//! `schemas/protocol.schema.json` in the CFA4-sdk repository; this crate
-//! accepts exactly what that schema accepts.
+//! The CFA4 AI worker protocol, version 2 (version 1 still accepted): message
+//! types, validation and JSON-lines framing. The normative description is
+//! `docs/protocol.md` and `schemas/protocol.schema.json` in the CFA4-sdk
+//! repository; this crate accepts exactly what that schema accepts.
 //!
 //! The crate does no I/O of its own beyond reading and writing lines on a
 //! stream the caller opened (a Unix socket in CFA4), and it does not map
@@ -19,8 +19,11 @@ pub use validate::{
     ValidationError, validate,
 };
 
-/// The protocol version this crate implements.
-pub const PROTOCOL_VERSION: u32 = 1;
+/// The newest protocol version this crate implements.
+pub const PROTOCOL_VERSION: u32 = 2;
+
+/// The oldest protocol version this crate still accepts.
+pub const MIN_PROTOCOL_VERSION: u32 = 1;
 
 /// Environment variable through which the host passes the socket path.
 pub const SOCKET_ENV: &str = "CFA4_AI_SOCKET";

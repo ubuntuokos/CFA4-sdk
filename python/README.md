@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 # cfa4-ai (Python)
 
-A CFA4 AI-workerek Python SDK-ja, a [protokoll](../docs/protocol.md) 1. változatához. Nincs
-függősége, így bármelyik modellkörnyezetbe (PyTorch, ONNX Runtime) ütközés nélkül telepíthető.
-Csak Linuxon fut, mert a képkockák a `/dev/shm` osztott memóriájában utaznak.
+A CFA4 AI-workerek Python SDK-ja, a [protokoll](../docs/protocol.md) 2. változatához (az 1.
+változatot is beszéli). Nincs függősége, így bármelyik modellkörnyezetbe (PyTorch, ONNX
+Runtime) ütközés nélkül telepíthető. Csak Linuxon fut, mert a képkockák a `/dev/shm` osztott memóriájában utaznak.
 
 ```sh
 pip install ./python
@@ -17,7 +17,11 @@ pip install ./python
 
 Egy worker a `Worker` alosztálya: megadja a `name`, `version` és `impls` mezőt, és megvalósítja
 a `load` és a `run` metódust. A `run` a `job.inputs` és a `job.outputs` `memoryview`-ját kapja,
-a `job.cancelled` jelzi a megszakítást, a `job.progress()` haladást küld. Minta:
+a `job.cancelled` jelzi a megszakítást, a `job.progress()` haladást küld. A 2. protokollváltozattól
+a `features` mezőben sorolja fel, mit tud ezekből (`"cancel"`, `"progress"`, `"preview"`,
+`"resume"`); a `post_export` és a `limits["watermark_above_height"]` a zárt, fizetős workereknek
+szól (lásd a protokoll 4. pontját). Ha a gazda csak az 1. változatot beszéli, a hurok ezeket nem
+küldi el. Minta:
 [`examples/invert_worker.py`](examples/invert_worker.py).
 
 A worker kódjában keletkező kivétel nem állítja le a hurkot, hanem `error` üzenet lesz belőle:

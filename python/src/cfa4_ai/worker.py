@@ -16,8 +16,8 @@ import threading
 import time
 
 from .protocol import (
-    MAX_SAFE_INTEGER, PROTOCOL_VERSION, SOCKET_ENV, MessageReader, ProtocolError, encode,
-    negotiate,
+    MAX_SAFE_INTEGER, MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, SOCKET_ENV, MessageReader,
+    ProtocolError, encode, negotiate,
 )
 from .shm import MappedBuffer
 
@@ -75,6 +75,10 @@ class Worker:
     impls = ()
     devices = None
     limits = {"max_jobs": 1}
+    features = ()
+    """Protocol 2: any of ``"cancel"``, ``"progress"``, ``"preview"``, ``"resume"``."""
+    post_export = None
+    """Protocol 2: the impl the host runs on exported frames holding this worker's output."""
 
     def load(self, impl, device, precision, weights_dir):
         """Loads a model; returns the VRAM it uses in MiB."""
@@ -131,7 +135,9 @@ class _Loop:
             return 2
         version = negotiate(hello["protocol"]["min"], hello["protocol"]["max"])
         if version is None:
-            self.error("unsupported", f"protocol {PROTOCOL_VERSION} not offered", hello["id"])
+            self.error("unsupported",
+                       f"none of protocols {MIN_PROTOCOL_VERSION}-{PROTOCOL_VERSION} offered",
+                       hello["id"])
             return 2
         caps = {"type": "caps", "id": 0, "reply_to": hello["id"], "protocol": version,
                 "worker": {"name": self.worker.name, "version": self.worker.version},
@@ -140,6 +146,13 @@ class _Loop:
             caps["worker"]["license"] = self.worker.license
         if self.worker.devices is not None:
             caps["devices"] = list(self.worker.devices)
+        if version >= 2:
+            if self.worker.features:
+                caps["features"] = list(self.worker.features)
+            if self.worker.post_export is not None:
+                caps["post_export"] = self.worker.post_export
+        else:
+            caps["limits"].pop("watermark_above_height", None)
         self.send(caps)
         for message in self.reader:
             kind = message["type"]

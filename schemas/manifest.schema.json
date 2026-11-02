@@ -21,7 +21,7 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "const": 3 } } },
+      "if": { "properties": { "manifest_version": { "enum": [3, 4] } } },
       "then": {
         "properties": {
           "license": { "$ref": "#/$defs/licenseV3" },
@@ -34,11 +34,24 @@
           "weights": { "items": { "$ref": "#/$defs/weightV1" } }
         }
       }
+    },
+    {
+      "if": { "properties": { "manifest_version": { "const": 4 } } },
+      "else": {
+        "properties": {
+          "resources": {
+            "properties": {
+              "vram_mb": { "propertyNames": { "not": { "pattern": "^any" } } },
+              "fps_hint": { "propertyNames": { "not": { "pattern": "^any" } } }
+            }
+          }
+        }
+      }
     }
   ],
   "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
   "properties": {
-    "manifest_version": { "enum": [1, 2, 3] },
+    "manifest_version": { "enum": [1, 2, 3, 4] },
     "capability": {
       "type": "object",
       "additionalProperties": false,
@@ -147,7 +160,7 @@
       "required": ["vram_mb"],
       "properties": {
         "vram_mb": {
-          "description": "Measured VRAM per resolution, optionally per precision (\"1080p\" or \"1080p@fp8\").",
+          "description": "Measured VRAM per resolution, optionally per precision (\"1080p\" or \"1080p@fp8\"). From manifest version 4, \"any\" (or \"any@fp16\") marks a value that does not depend on the frame size, for audio and text capabilities.",
           "type": "object",
           "minProperties": 1,
           "propertyNames": { "$ref": "#/$defs/resolutionKey" },
@@ -292,7 +305,7 @@
       }
     },
     "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-    "resolutionKey": { "pattern": "^(360|480|540|720|1080|1440|2160|4320)p(@(fp32|fp16|bf16|fp8|int8|int4))?$" },
+    "resolutionKey": { "pattern": "^(any|(360|480|540|720|1080|1440|2160|4320)p)(@(fp32|fp16|bf16|fp8|int8|int4))?$" },
     "port": {
       "type": "object",
       "additionalProperties": false,

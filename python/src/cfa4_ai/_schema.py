@@ -12,9 +12,24 @@ import re
 
 _ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description"}
 _KNOWN = _ANNOTATIONS | {
-    "$ref", "type", "const", "enum", "properties", "required", "additionalProperties",
-    "propertyNames", "items", "uniqueItems", "minimum", "maximum", "exclusiveMinimum",
-    "maxLength", "pattern", "oneOf", "if", "then",
+    "$ref",
+    "type",
+    "const",
+    "enum",
+    "properties",
+    "required",
+    "additionalProperties",
+    "propertyNames",
+    "items",
+    "uniqueItems",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "maxLength",
+    "pattern",
+    "oneOf",
+    "if",
+    "then",
 }
 
 
@@ -36,7 +51,9 @@ def _is_type(value, name):
     if isinstance(value, bool):
         return False
     if name == "integer":
-        return isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+        return isinstance(value, int) or (
+            isinstance(value, float) and value.is_integer()
+        )
     if name == "number":
         return isinstance(value, (int, float))
     raise SchemaError(f"unknown type {name!r}")
@@ -47,7 +64,10 @@ def _canonical(value):
     if isinstance(value, bool) or value is None or isinstance(value, str):
         return (type(value).__name__, value)
     if isinstance(value, (int, float)):
-        return ("number", int(value) if isinstance(value, float) and value.is_integer() else value)
+        return (
+            "number",
+            int(value) if isinstance(value, float) and value.is_integer() else value,
+        )
     if isinstance(value, list):
         return ("array", tuple(_canonical(v) for v in value))
     if isinstance(value, dict):
@@ -92,7 +112,9 @@ class Validator:
         if "$ref" in schema:
             yield from self.errors(value, self._resolve(schema["$ref"]), path)
         if "type" in schema:
-            types = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
+            types = (
+                schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
+            )
             if not any(_is_type(value, t) for t in types):
                 yield path, f"expected {'/'.join(types)}"
                 return
@@ -114,12 +136,17 @@ class Validator:
         if isinstance(value, str):
             if "maxLength" in schema and len(value) > schema["maxLength"]:
                 yield path, f"longer than {schema['maxLength']} characters"
-            if "pattern" in schema and not self._pattern(schema["pattern"]).search(value):
+            if "pattern" in schema and not self._pattern(schema["pattern"]).search(
+                value
+            ):
                 yield path, f"must match {schema['pattern']}"
         if "oneOf" in schema:
             matching = [s for s in schema["oneOf"] if self.is_valid(value, s)]
             if len(matching) > 1:
-                yield path, f"matches {len(matching)} of the alternatives, not exactly one"
+                yield (
+                    path,
+                    f"matches {len(matching)} of the alternatives, not exactly one",
+                )
             elif not matching:
                 chosen = self._discriminated(value, schema["oneOf"])
                 if chosen is None:
@@ -135,7 +162,11 @@ class Validator:
             return None
         found = []
         for alternative in alternatives:
-            target = self._resolve(alternative["$ref"]) if "$ref" in alternative else alternative
+            target = (
+                self._resolve(alternative["$ref"])
+                if "$ref" in alternative
+                else alternative
+            )
             const = target.get("properties", {}).get("type", {}).get("const")
             if const is not None and const == value.get("type"):
                 found.append(alternative)
@@ -153,7 +184,9 @@ class Validator:
             if name in properties:
                 yield from self.errors(item, properties[name], f"{path}.{name}")
             elif "additionalProperties" in schema:
-                yield from self.errors(item, schema["additionalProperties"], f"{path}.{name}")
+                yield from self.errors(
+                    item, schema["additionalProperties"], f"{path}.{name}"
+                )
 
     def _array(self, value, schema, path):
         if "items" in schema:

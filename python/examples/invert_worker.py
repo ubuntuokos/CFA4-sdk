@@ -5,6 +5,7 @@ Run by the host with ``CFA4_AI_SOCKET`` set:  python3 invert_worker.py
 """
 
 import sys
+from typing import ClassVar
 
 from cfa4_ai import Worker, WorkerError, serve
 
@@ -17,7 +18,7 @@ class InvertWorker(Worker):
     license = "MIT OR Apache-2.0"
     impls = ("invert-rgb8",)
     devices = ("cpu",)
-    limits = {"max_jobs": 2}
+    limits: ClassVar[dict[str, int]] = {"max_jobs": 2}
     features = ("cancel", "progress")
 
     def load(self, impl, device, precision, weights_dir):
@@ -28,9 +29,20 @@ class InvertWorker(Worker):
     def run(self, job):
         src = job.message["inputs"].get("src")
         dst = job.message["outputs"].get("out")
-        if not src or not dst or src.get("format") != "rgb8" or dst.get("format") != "rgb8":
-            raise WorkerError("invalid_input", "needs an rgb8 input 'src' and an rgb8 output 'out'")
-        if (src["width"], src["height"], src["stride"]) != (dst["width"], dst["height"], dst["stride"]):
+        if (
+            not src
+            or not dst
+            or src.get("format") != "rgb8"
+            or dst.get("format") != "rgb8"
+        ):
+            raise WorkerError(
+                "invalid_input", "needs an rgb8 input 'src' and an rgb8 output 'out'"
+            )
+        if (src["width"], src["height"], src["stride"]) != (
+            dst["width"],
+            dst["height"],
+            dst["stride"],
+        ):
             raise WorkerError("invalid_input", "input and output geometry differ")
         frames = src.get("frames", 1)
         if dst.get("frames", 1) != frames:
@@ -41,11 +53,11 @@ class InvertWorker(Worker):
         inp, out = job.inputs["src"], job.outputs["out"]
         for i in range(frames):
             if job.cancelled:
-                return None
+                return
             a, b = i * frame_len, (i + 1) * frame_len
             out[a:b] = bytes(inp[a:b]).translate(_INVERT)
             job.progress(i + 1, frames, "invert")
-        return None
+        return
 
 
 if __name__ == "__main__":

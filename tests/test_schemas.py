@@ -197,6 +197,42 @@ class ManifestSchema(unittest.TestCase):
         broken["weights"][0]["file"] = "../model.onnx"
         self.assert_invalid(broken, "v3 weights path escaping the model folder")
 
+    def test_version_4_frame_size_independent_resources(self):
+        manifests = dict(self.manifests())
+        v4 = manifests[EXAMPLES / "manifests" / "align-wav2vec2.toml"]
+        self.assertEqual(v4["manifest_version"], 4)
+        self.assertIn("any@fp32", v4["resources"]["vram_mb"])
+
+        # "any" belongs to version 4 only.
+        broken = copy.deepcopy(manifests[EXAMPLES / "manifests" / "vsr-onnx.toml"])
+        broken["resources"]["vram_mb"] = {"any": 100}
+        self.assert_invalid(broken, "any vram_mb in version 3")
+        broken = copy.deepcopy(manifests[EXAMPLES / "manifests" / "tts-piper.toml"])
+        broken["resources"]["vram_mb"] = {"any": 0}
+        self.assert_invalid(broken, "any vram_mb in version 2")
+        broken = copy.deepcopy(manifests[EXAMPLES / "manifests" / "vsr-onnx.toml"])
+        broken["resources"]["fps_hint"] = {"any": 10}
+        self.assert_invalid(broken, "any fps_hint in version 3")
+
+        for key in ["anyp", "any@fp64", "Any", "any@"]:
+            with self.subTest(key=key):
+                broken = copy.deepcopy(v4)
+                broken["resources"]["vram_mb"] = {key: 100}
+                self.assert_invalid(broken, f"bad key {key}")
+
+        # Version 4 keeps the version 3 licence and weights rules.
+        broken = copy.deepcopy(v4)
+        broken["license"] = {"code": "MIT", "model": "MIT", "commercial": True}
+        self.assert_invalid(broken, "v1 licence in v4")
+        broken = copy.deepcopy(v4)
+        broken["weights"][0]["revision"] = "main"
+        self.assert_invalid(broken, "floating revision in v4")
+
+        # A v3 manifest with frame-size keys stays valid as v4.
+        upgraded = copy.deepcopy(manifests[EXAMPLES / "manifests" / "vsr-onnx.toml"])
+        upgraded["manifest_version"] = 4
+        self.assertEqual([e.message for e in self.validator.iter_errors(upgraded)], [])
+
 
 class ProtocolSchema(unittest.TestCase):
     validator = load_schema("protocol.schema.json")

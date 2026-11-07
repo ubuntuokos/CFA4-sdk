@@ -135,8 +135,9 @@ elfogad:
 | 1 | Első változat: `AI-nnn` azonosítók, M1–M12 motorcsaládok |
 | 2 | `capability.languages` (BCP 47 nyelvcímkék), `AU-nnn` azonosítók a hanglistához, M13–M15 motorcsaládok |
 | 3 | A `license` négy mező (`code`, `dependencies`, `weights`, `dataset`), mindegyikben `spdx` és `commercial` (`yes`, `no`, `unknown`); a `weights` elemeiben kötelező a `url`, a rögzített `revision` és a `format` |
+| 4 | A `resources.vram_mb` és a `resources.fps_hint` kulcsa lehet `any` (vagy `any@fp16` stb.) is: a képkockamérettől független érték hang- és szövegképességekhez. A licenc- és súlyszabály a 3. változaté. |
 
-**A 3. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
+**A 3. és 4. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
 `NOASSERTION`, ha nem ismert. **A CFA4 modellt nem terjeszt, csak a modelleket használó
 alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
 feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő

@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Manifest version 4: CFA4 gate F3, English subtitle alignment (CTC forced
+# alignment). The weights revision and licences are the real ones; the hash,
+# size, VRAM and speed are placeholders until the F3 measurement.
+manifest_version = 4
+
+[capability]
+id        = "AU-037"
+impl      = "align-wav2vec2"
+version   = "0.1.0"
+family    = "M10"
+name      = "Felirat-időzítés (angol)"
+shape     = "audio+text->json"
+scope     = "clip"
+languages = ["en"]
+edition   = "free"
+
+[runtime]
+kind      = "onnx"
+providers = ["cuda", "cpu"]
+precision = ["fp32", "fp16"]
+protocol  = 2
+
+[io]
+inputs  = [
+  { name = "speech", type = "audio", format = "pcm-f32" },
+  { name = "script", type = "text" },
+]
+outputs = [{ name = "timing", type = "json" }]
+
+[resources]
+vram_mb = { "any@fp32" = 1500, "any@fp16" = 900 }
+ram_mb  = 2000
+load_ms = 800
+
+[behavior]
+deterministic = true
+seedable      = false
+cancellable   = "chunk"
+checkpoint    = false
+
+# Source checkpoint, pinned to a commit. The worker exports it to ONNX once,
+# on the user's machine; CFA4 does not distribute the model.
+[[weights]]
+file      = "wav2vec2-base-960h/model.safetensors"
+url       = "https://huggingface.co/facebook/wav2vec2-base-960h/resolve/22aad52d435eb6dbaf354bdad9b0da84ce7d6156/model.safetensors"
+revision  = "22aad52d435eb6dbaf354bdad9b0da84ce7d6156"
+format    = "safetensors"
+sha256    = "0000000000000000000000000000000000000000000000000000000000000000"
+size_mb   = 378
+precision = "fp32"
+
+[license]
+notes = "Attribution required: Apache-2.0 NOTICE for the weights, CC BY 4.0 for LibriSpeech."
+
+[license.code]
+spdx       = "GPL-3.0-or-later"
+commercial = "yes"
+
+[license.dependencies]
+spdx       = "MIT"
+commercial = "yes"
+url        = "https://github.com/microsoft/onnxruntime/blob/main/LICENSE"
+
+[license.weights]
+spdx       = "Apache-2.0"
+commercial = "yes"
+url        = "https://huggingface.co/facebook/wav2vec2-base-960h"
+
+[license.dataset]
+spdx       = "CC-BY-4.0"
+commercial = "yes"
+url        = "https://www.openslr.org/12/"

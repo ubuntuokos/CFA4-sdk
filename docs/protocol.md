@@ -137,16 +137,17 @@ elfogad:
 | 3 | A `license` négy mező (`code`, `dependencies`, `weights`, `dataset`), mindegyikben `spdx` és `commercial` (`yes`, `no`, `unknown`); a `weights` elemeiben kötelező a `url`, a rögzített `revision` és a `format` |
 
 **A 3. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
-`NOASSERTION`, ha nem ismert. A CFA4 a modelleket nem terjeszti, a súlyt a felhasználó maga tölti
-le: a gazda a felhasználó kérésére közvetlenül a forrásból (például Hugging Face, GitHub) tölti
-le, a CFA4 saját tárhelyén súly nincs. Ezért a súlyt és a tanítóadatot érintő licenc a felhasználó
-felelőssége (CFA4 ADR 0006,
-2. pont, István döntése, 2026-11-07). Ebből következik:
+`NOASSERTION`, ha nem ismert. **A CFA4 modellt nem terjeszt, csak a modelleket használó
+alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
+feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő
+kérésére, közvetlenül a forrásból, például Hugging Face-ről vagy GitHubról; a CFA4 tárhelyén súly
+nincs). CFA4 ADR 0006, 2. pont, István döntése, 2026-11-07. Ebből következik:
 
 - A `weights` és a `dataset` rész `NOASSERTION`, `unknown` vagy `no` értéke egyik workerben sem
   tiltja le az implementációt, a CFA4-gyel szállított GPL-es workerekben sem.
 - A gazda megmutatja a négy licencrészt, és a felhasználónak implementációnként egyszer el kell
-  fogadnia a figyelmeztetést, még a letöltés előtt. Amíg nem fogadta el, a job `blocked` állapotban vár `license` okkal
+  fogadnia a figyelmeztetést az első letöltés előtt, a modell feltételeire mutató hivatkozással
+  (`license.*.url`). Amíg nem fogadta el, a job `blocked` állapotban vár `license` okkal
   ([`host.schema.json`](../schemas/host.schema.json)); az elfogadás a projektben rögzül, a
   `weights` elemeinek hash-ével együtt, így új súlynál újra kérdez.
 - Kereskedelmi kérésnél (`route_decision.request.commercial`) a gazda külön, erősebb

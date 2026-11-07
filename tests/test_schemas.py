@@ -197,7 +197,6 @@ class ManifestSchema(unittest.TestCase):
         broken["weights"][0]["file"] = "../model.onnx"
         self.assert_invalid(broken, "v3 weights path escaping the model folder")
 
-
     def test_version_4_frame_size_independent_resources(self):
         manifests = dict(self.manifests())
         v4 = manifests[EXAMPLES / "manifests" / "align-wav2vec2.toml"]

@@ -20,12 +20,21 @@ MAX_SAFE_INTEGER = (1 << 53) - 1
 MAX_DEPTH = 64
 
 ERROR_CODES = (
-    "oom", "invalid_input", "model_error", "model_missing", "unsupported",
-    "limit_reached", "cancelled", "protocol", "crash",
+    "oom",
+    "invalid_input",
+    "model_error",
+    "model_missing",
+    "unsupported",
+    "limit_reached",
+    "cancelled",
+    "protocol",
+    "crash",
 )
 
 _validator = Validator(
-    json.loads(resources.files(__package__).joinpath("protocol.schema.json").read_text("utf-8"))
+    json.loads(
+        resources.files(__package__).joinpath("protocol.schema.json").read_text("utf-8")
+    )
 )
 
 
@@ -74,7 +83,9 @@ def _check_text(value, path="$"):
         try:
             value.encode("utf-8")
         except UnicodeEncodeError:
-            raise ProtocolError("json", f"{path}: unpaired surrogate in a string") from None
+            raise ProtocolError(
+                "json", f"{path}: unpaired surrogate in a string"
+            ) from None
     elif isinstance(value, list):
         for item in value:
             _check_text(item, path)
@@ -116,7 +127,9 @@ def decode(line):
         raise ProtocolError("line_too_long", f"line longer than {MAX_LINE_BYTES} bytes")
     try:
         message = json.loads(
-            line.decode("utf-8"), object_pairs_hook=_no_duplicates, parse_constant=_no_constant
+            line.decode("utf-8"),
+            object_pairs_hook=_no_duplicates,
+            parse_constant=_no_constant,
         )
     except (UnicodeDecodeError, ValueError, RecursionError) as e:
         raise ProtocolError("json", f"malformed message: {e}") from None
@@ -131,7 +144,9 @@ def encode(message):
     _check_depth(message)
     _check_text(message)
     validate(message)
-    line = json.dumps(message, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+    line = json.dumps(
+        message, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    )
     data = line.encode("utf-8") + b"\n"
     if len(data) > MAX_LINE_BYTES:
         raise ProtocolError("line_too_long", f"line longer than {MAX_LINE_BYTES} bytes")
@@ -152,7 +167,9 @@ class MessageReader:
                 return None
             if not line.endswith(b"\n"):
                 if len(line) >= MAX_LINE_BYTES:
-                    raise ProtocolError("line_too_long", f"line longer than {MAX_LINE_BYTES} bytes")
+                    raise ProtocolError(
+                        "line_too_long", f"line longer than {MAX_LINE_BYTES} bytes"
+                    )
                 raise ProtocolError("truncated", "stream ended inside a line")
             if line.strip():
                 return decode(line)
@@ -162,7 +179,9 @@ class MessageReader:
             yield message
 
 
-def negotiate(host_min, host_max, worker_min=MIN_PROTOCOL_VERSION, worker_max=PROTOCOL_VERSION):
+def negotiate(
+    host_min, host_max, worker_min=MIN_PROTOCOL_VERSION, worker_max=PROTOCOL_VERSION
+):
     """The highest version both sides speak, or ``None``."""
     low = max(host_min, worker_min, 1)
     high = min(host_max, worker_max)

@@ -34,7 +34,7 @@
       "required": ["check", "detail"],
       "properties": {
         "check": {
-          "description": "capability: no implementation of the type; language: segment language not covered; license: unknown or non-commercial licence part; model: weights missing or hash mismatch; format: weight format not loadable at this gate; runtime: runtime or provider not installed; device: no suitable device (vendor, display GPU excluded); vram: not enough free VRAM; ram: not enough RAM; resolution: above the implementation's maximum.",
+          "description": "capability: no implementation of the type; language: segment language not covered; license: unknown code or dependencies licence, or a weights or dataset licence warning the user has not accepted yet; model: weights missing or hash mismatch; format: weight format not loadable at this gate; runtime: runtime or provider not installed; device: no suitable device (vendor, display GPU excluded); vram: not enough free VRAM; ram: not enough RAM; resolution: above the implementation's maximum.",
           "enum": ["capability", "language", "license", "model", "format", "runtime", "device", "vram", "ram", "resolution"]
         },
         "need": { "description": "What the implementation requires, e.g. \"5800 MB\".", "type": "string", "maxLength": 120 },

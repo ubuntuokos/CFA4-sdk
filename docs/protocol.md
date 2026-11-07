@@ -1,6 +1,6 @@
 # CFA4 AI worker-protokoll, 2. változat
 
-> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-10-31 ·
+> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-07 ·
 > **Változás:** minor (2. változat: `caps.features`, `caps.post_export`,
 > `caps.limits.watermark_above_height`; az 1. változat érvényes marad) ·
 > **Séma:** [`schemas/protocol.schema.json`](../schemas/protocol.schema.json), a gazda felé
@@ -137,13 +137,22 @@ elfogad:
 | 3 | A `license` négy mező (`code`, `dependencies`, `weights`, `dataset`), mindegyikben `spdx` és `commercial` (`yes`, `no`, `unknown`); a `weights` elemeiben kötelező a `url`, a rögzített `revision` és a `format` |
 
 **A 3. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
-`NOASSERTION`, ha nem ismert. A gazda az olyan implementációt, amelynek bármelyik mezőjében
-`NOASSERTION` vagy `unknown` áll, nem kínálja fel, és az ilyen job `blocked` állapotba kerül
-([`host.schema.json`](../schemas/host.schema.json), `license` ok). **Kivétel:** a CFA4-gyel nem
-szállított, külön telepített zárt worker implementációjánál a `weights` és a `dataset` rész
-ismeretlen értéke nem blokkol, csak figyelmeztet; a felelősség a worker kiadójáé. A `code` és a
-`dependencies` ismeretlen értéke ott is blokkol, kereskedelmi kérésre pedig a `no` vagy `unknown`
-rész mindenhol elutasítást ad (CFA4 ADR 0006, 2. pont, 2026-10-31).
+`NOASSERTION`, ha nem ismert. A CFA4 a modelleket nem terjeszti, a súlyt a felhasználó maga tölti
+le: a gazda a felhasználó kérésére közvetlenül a forrásból (például Hugging Face, GitHub) tölti
+le, a CFA4 saját tárhelyén súly nincs. Ezért a súlyt és a tanítóadatot érintő licenc a felhasználó
+felelőssége (CFA4 ADR 0006,
+2. pont, István döntése, 2026-11-07). Ebből következik:
+
+- A `weights` és a `dataset` rész `NOASSERTION`, `unknown` vagy `no` értéke egyik workerben sem
+  tiltja le az implementációt, a CFA4-gyel szállított GPL-es workerekben sem.
+- A gazda megmutatja a négy licencrészt, és a felhasználónak implementációnként egyszer el kell
+  fogadnia a figyelmeztetést, még a letöltés előtt. Amíg nem fogadta el, a job `blocked` állapotban vár `license` okkal
+  ([`host.schema.json`](../schemas/host.schema.json)); az elfogadás a projektben rögzül, a
+  `weights` elemeinek hash-ével együtt, így új súlynál újra kérdez.
+- Kereskedelmi kérésnél (`route_decision.request.commercial`) a gazda külön, erősebb
+  figyelmeztetést ad, ha bármelyik rész `commercial` értéke `no` vagy `unknown`, de nem tilt.
+- A `code` és a `dependencies` rész `NOASSERTION` vagy `unknown` értéke továbbra is blokkol: ezeket
+  a worker kiadója szállítja, nem a felhasználó tölti le.
 
 A `revision` pontos, megváltoztathatatlan változat (például commit-hash); `main`,
 `master`, `latest` vagy `HEAD` nem fogadható el. Az első körben a gazda csak `onnx` és

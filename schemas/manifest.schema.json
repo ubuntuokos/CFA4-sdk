@@ -266,13 +266,13 @@
       "required": ["spdx", "commercial"],
       "properties": {
         "spdx": {
-          "description": "SPDX expression, LicenseRef-..., or NOASSERTION when not known. The host blocks NOASSERTION, except in the weights and dataset parts of a separately installed closed worker, where it warns (docs/protocol.md section 5).",
+          "description": "SPDX expression, LicenseRef-..., or NOASSERTION when not known. NOASSERTION blocks in the code and dependencies parts; in the weights and dataset parts the user is responsible and the host only asks for acceptance once (docs/protocol.md section 5).",
           "type": "string",
           "minLength": 1,
           "maxLength": 256
         },
         "commercial": {
-          "description": "Whether this part allows commercial use. The host blocks unknown with the same closed-worker exception as spdx, and refuses no and unknown for a commercial request.",
+          "description": "Whether this part allows commercial use. unknown blocks in the code and dependencies parts; in the weights and dataset parts the host warns (more strongly for a commercial request) but does not block.",
           "enum": ["yes", "no", "unknown"]
         },
         "url": { "description": "Where the licence text is.", "type": "string", "pattern": "^https://" }

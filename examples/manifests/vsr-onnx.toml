@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Manifest version 3: four licence parts, pinned weights. Placeholder values:
-# the model, URL, revision and hashes are not chosen yet (CFA4 gate F3).
+# the model, URL, revision and hashes are not chosen yet. NOASSERTION in weights and dataset
+# does not block: the host asks the user to accept it once (docs/protocol.md section 5).
 manifest_version = 3
 
 [capability]

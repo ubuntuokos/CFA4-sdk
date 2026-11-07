@@ -63,19 +63,34 @@ class ManifestSchema(unittest.TestCase):
 
         v2 = copy.deepcopy(base)
         v2["manifest_version"] = 2
-        for tag in ["hu", "EN-US", "zh-Hans", "zh-Hant-TW", "tlh", "art-x-dothrak", "x-private",
-                    "de-CH-1996", "sl-rozaj-biske", "en-a-bbb-x-a-ccc"]:
+        for tag in [
+            "hu",
+            "EN-US",
+            "zh-Hans",
+            "zh-Hant-TW",
+            "tlh",
+            "art-x-dothrak",
+            "x-private",
+            "de-CH-1996",
+            "sl-rozaj-biske",
+            "en-a-bbb-x-a-ccc",
+        ]:
             with self.subTest(language=tag):
                 ok = copy.deepcopy(v2)
                 ok["capability"]["languages"] = [tag]
-                self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+                self.assertEqual(
+                    [e.message for e in self.validator.iter_errors(ok)], []
+                )
         for tag in ["Hungarian", "en-a", "x", "en--us", "e", "en-x", "-en", "en-"]:
             with self.subTest(bad_language=tag):
                 broken = copy.deepcopy(v2)
                 broken["capability"]["languages"] = [tag]
                 self.assert_invalid(broken, f"language tag {tag!r}")
 
-        for why, value in [("duplicate language", ["hu", "hu"]), ("empty language list", [])]:
+        for why, value in [
+            ("duplicate language", ["hu", "hu"]),
+            ("empty language list", []),
+        ]:
             with self.subTest(why):
                 broken = copy.deepcopy(v2)
                 broken["capability"]["languages"] = value
@@ -86,9 +101,11 @@ class ManifestSchema(unittest.TestCase):
         self.assert_invalid(broken, "unknown manifest version")
 
         # Version 1 keeps its original rules.
-        for why, key, value in [("languages in v1", "languages", ["hu"]),
-                                ("AU id in v1", "id", "AU-010"),
-                                ("M13 in v1", "family", "M13")]:
+        for why, key, value in [
+            ("languages in v1", "languages", ["hu"]),
+            ("AU id in v1", "id", "AU-010"),
+            ("M13 in v1", "family", "M13"),
+        ]:
             with self.subTest(why):
                 broken = copy.deepcopy(base)
                 self.assertEqual(broken["manifest_version"], 1)
@@ -122,7 +139,10 @@ class ManifestSchema(unittest.TestCase):
 
         # The old licence and old weights are not version 3, and the reverse.
         v1 = manifests[EXAMPLES / "manifests" / "bgswap-onnx.toml"]
-        for why, version, source in [("v1 licence in v3", 3, v1), ("v3 licence in v2", 2, v3)]:
+        for why, version, source in [
+            ("v1 licence in v3", 3, v1),
+            ("v3 licence in v2", 2, v3),
+        ]:
             with self.subTest(why):
                 broken = copy.deepcopy(v3)
                 broken["manifest_version"] = version
@@ -160,12 +180,16 @@ class ManifestSchema(unittest.TestCase):
             with self.subTest(revision=revision):
                 broken = copy.deepcopy(v3)
                 broken["weights"][0]["revision"] = revision
-                self.assert_invalid(broken, f"moving or malformed revision {revision!r}")
+                self.assert_invalid(
+                    broken, f"moving or malformed revision {revision!r}"
+                )
         for fmt in ["onnx", "safetensors", "gguf", "pt", "bin", "ckpt"]:
             with self.subTest(format=fmt):
                 ok = copy.deepcopy(v3)
                 ok["weights"][0]["format"] = fmt
-                self.assertEqual([e.message for e in self.validator.iter_errors(ok)], [])
+                self.assertEqual(
+                    [e.message for e in self.validator.iter_errors(ok)], []
+                )
         broken = copy.deepcopy(v3)
         broken["weights"][0]["format"] = "pickle"
         self.assert_invalid(broken, "unknown weight format")
@@ -228,8 +252,12 @@ class ProtocolSchema(unittest.TestCase):
 
     def test_session_example_covers_every_message_type(self):
         schema = self.validator.schema
-        defined = {schema["$defs"][ref["$ref"].rsplit("/", 1)[-1]]["properties"]["type"]["const"]
-                   for ref in schema["oneOf"]}
+        defined = {
+            schema["$defs"][ref["$ref"].rsplit("/", 1)[-1]]["properties"]["type"][
+                "const"
+            ]
+            for ref in schema["oneOf"]
+        }
         used = {m["type"] for m in jsonl(EXAMPLES / "messages" / "session.jsonl")}
         self.assertEqual(defined, used)
 
@@ -243,8 +271,15 @@ class ProtocolSchema(unittest.TestCase):
             used = set().union(*(m.keys() for m in messages if m["type"] == kind))
             with self.subTest(type=kind):
                 self.assertEqual(set(defs[name]["properties"]), used)
-        buffers = [b for m in messages for key in ("inputs", "outputs") for b in m.get(key, {}).values()]
-        self.assertEqual(set(defs["buffer"]["properties"]), set().union(*(b.keys() for b in buffers)))
+        buffers = [
+            b
+            for m in messages
+            for key in ("inputs", "outputs")
+            for b in m.get(key, {}).values()
+        ]
+        self.assertEqual(
+            set(defs["buffer"]["properties"]), set().union(*(b.keys() for b in buffers))
+        )
 
     def test_invalid_messages_are_rejected(self):
         for n, message in enumerate(jsonl(EXAMPLES / "messages" / "invalid.jsonl"), 1):
@@ -275,11 +310,14 @@ class HostSchema(unittest.TestCase):
         candidates = [c for r in routes for c in r["candidates"]]
         self.assertEqual(set(defs["candidate"]["properties"]), set().union(*candidates))
         checks = [c for x in candidates for c in x["failed"]] + [
-            c for s in statuses for c in s.get("blocked", [])]
+            c for s in statuses for c in s.get("blocked", [])
+        ]
         self.assertEqual(set(defs["check"]["properties"]), set().union(*checks))
 
     def test_chosen_is_a_passing_candidate(self):
-        for n, route in enumerate(r for r in self.reports() if r["type"] == "route_decision"):
+        for n, route in enumerate(
+            r for r in self.reports() if r["type"] == "route_decision"
+        ):
             with self.subTest(route=n):
                 passing = [c["impl"] for c in route["candidates"] if c["ok"]]
                 if route["chosen"] is None:

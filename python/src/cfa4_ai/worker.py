@@ -14,10 +14,17 @@ import os
 import socket
 import threading
 import time
+from typing import ClassVar
 
 from .protocol import (
-    MAX_SAFE_INTEGER, MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, SOCKET_ENV, MessageReader,
-    ProtocolError, encode, negotiate,
+    MAX_SAFE_INTEGER,
+    MIN_PROTOCOL_VERSION,
+    PROTOCOL_VERSION,
+    SOCKET_ENV,
+    MessageReader,
+    ProtocolError,
+    encode,
+    negotiate,
 )
 from .shm import MappedBuffer
 
@@ -74,7 +81,7 @@ class Worker:
     license = None
     impls = ()
     devices = None
-    limits = {"max_jobs": 1}
+    limits: ClassVar[dict[str, int]] = {"max_jobs": 1}
     features = ()
     """Protocol 2: any of ``"cancel"``, ``"progress"``, ``"preview"``, ``"resume"``."""
     post_export = None
@@ -111,15 +118,26 @@ class _Loop:
             try:
                 data = encode(message)
             except (ProtocolError, TypeError, ValueError) as e:
-                data = encode({"type": "error", "id": message["id"], "code": "crash",
-                               "message": f"worker built an invalid message: {e}"[:2000],
-                               "retryable": True})
+                data = encode(
+                    {
+                        "type": "error",
+                        "id": message["id"],
+                        "code": "crash",
+                        "message": f"worker built an invalid message: {e}"[:2000],
+                        "retryable": True,
+                    }
+                )
             self.sock.sendall(data)
 
     def error(self, code, text, reply_to=None, job=None):
         text = str(text).encode("utf-8", "replace").decode("utf-8")[:2000]
-        message = {"type": "error", "id": 0, "code": code, "message": text,
-                   "retryable": code in _RETRYABLE}
+        message = {
+            "type": "error",
+            "id": 0,
+            "code": code,
+            "message": text,
+            "retryable": code in _RETRYABLE,
+        }
         if reply_to is not None:
             message["reply_to"] = reply_to
         if job is not None:
@@ -135,13 +153,21 @@ class _Loop:
             return 2
         version = negotiate(hello["protocol"]["min"], hello["protocol"]["max"])
         if version is None:
-            self.error("unsupported",
-                       f"none of protocols {MIN_PROTOCOL_VERSION}-{PROTOCOL_VERSION} offered",
-                       hello["id"])
+            self.error(
+                "unsupported",
+                f"none of protocols {MIN_PROTOCOL_VERSION}-{PROTOCOL_VERSION} offered",
+                hello["id"],
+            )
             return 2
-        caps = {"type": "caps", "id": 0, "reply_to": hello["id"], "protocol": version,
-                "worker": {"name": self.worker.name, "version": self.worker.version},
-                "impls": list(self.worker.impls), "limits": dict(self.worker.limits)}
+        caps = {
+            "type": "caps",
+            "id": 0,
+            "reply_to": hello["id"],
+            "protocol": version,
+            "worker": {"name": self.worker.name, "version": self.worker.version},
+            "impls": list(self.worker.impls),
+            "limits": dict(self.worker.limits),
+        }
         if self.worker.license:
             caps["worker"]["license"] = self.worker.license
         if self.worker.devices is not None:
@@ -173,32 +199,58 @@ class _Loop:
             self.error("unsupported", f"unknown implementation {impl}", m["id"])
             return
         try:
-            vram = int(self.worker.load(impl, device, m.get("precision"), m.get("weights_dir")))
-        except Exception as e:  # the worker's code must not stop the loop
+            vram = int(
+                self.worker.load(impl, device, m.get("precision"), m.get("weights_dir"))
+            )
+        except Exception as e:  # noqa: BLE001 - the worker's code must not stop the loop
             self.error(_error_code(e, during_load=True), e, m["id"])
             return
-        self.loaded[(impl, _device_key(device))] = {"impl": impl, "device": device,
-                                                     "vram_mb": max(vram, 0)}
-        self.send({"type": "loaded", "id": 0, "reply_to": m["id"], "impl": impl,
-                   "vram_mb": max(vram, 0)})
+        self.loaded[(impl, _device_key(device))] = {
+            "impl": impl,
+            "device": device,
+            "vram_mb": max(vram, 0),
+        }
+        self.send(
+            {
+                "type": "loaded",
+                "id": 0,
+                "reply_to": m["id"],
+                "impl": impl,
+                "vram_mb": max(vram, 0),
+            }
+        )
 
     def on_unload(self, m):
         impl = m["impl"]
-        keys = [k for k in self.loaded if k[0] == impl
-                and ("device" not in m or k[1] == _device_key(m["device"]))]
+        keys = [
+            k
+            for k in self.loaded
+            if k[0] == impl and ("device" not in m or k[1] == _device_key(m["device"]))
+        ]
         for key in keys:
             try:
                 self.worker.unload(impl, self.loaded[key]["device"])
-            except Exception as e:  # the model stays resident, so a later unload can retry
+            except Exception as e:  # noqa: BLE001 - the model stays resident, so a later unload can retry
                 self.error(_error_code(e, during_load=False), e, m["id"])
                 continue
             self.loaded.pop(key, None)
-        self.send({"type": "stats", "id": 0, "reply_to": m["id"],
-                   "loaded": list(self.loaded.values())})
+        self.send(
+            {
+                "type": "stats",
+                "id": 0,
+                "reply_to": m["id"],
+                "loaded": list(self.loaded.values()),
+            }
+        )
 
     def on_run(self, m):
         if (m["impl"], _device_key(m["device"])) not in self.loaded:
-            self.error("unsupported", f"{m['impl']} is not loaded on {m['device']}", m["id"], m["job"])
+            self.error(
+                "unsupported",
+                f"{m['impl']} is not loaded on {m['device']}",
+                m["id"],
+                m["job"],
+            )
             return
         with self.jobs_lock:
             if m["job"] in self.jobs:
@@ -218,8 +270,14 @@ class _Loop:
             job._cancelled.set()
 
     def send_progress(self, job, done, total, stage):
-        message = {"type": "progress", "id": 0, "reply_to": job.message["id"], "job": job.id,
-                   "done": int(done), "total": int(total)}
+        message = {
+            "type": "progress",
+            "id": 0,
+            "reply_to": job.message["id"],
+            "job": job.id,
+            "done": int(done),
+            "total": int(total),
+        }
         if stage is not None:
             message["stage"] = str(stage)[:64]
         self.send(message)
@@ -228,7 +286,7 @@ class _Loop:
         m = job.message
         try:
             reply = self.execute(job)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - a failing job becomes an error reply, never a crash
             code = "cancelled" if job.cancelled else _error_code(e, during_load=False)
             reply = ("error", code, e)
         finally:
@@ -268,8 +326,17 @@ class _Loop:
             return ("error", "cancelled", "cancelled by host")
         metrics = dict(metrics)
         metrics.setdefault("elapsed_ms", int((time.monotonic() - started) * 1000))
-        return ("result", {"type": "result", "id": 0, "reply_to": m["id"], "job": job.id,
-                           "outputs": m["outputs"], "metrics": metrics})
+        return (
+            "result",
+            {
+                "type": "result",
+                "id": 0,
+                "reply_to": m["id"],
+                "job": job.id,
+                "outputs": m["outputs"],
+                "metrics": metrics,
+            },
+        )
 
     def cancel_all(self):
         with self.jobs_lock:

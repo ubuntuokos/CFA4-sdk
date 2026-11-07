@@ -1,11 +1,28 @@
 version: 2
+# Version updates wait 7 days after a release, so a compromised or yanked release is
+# usually caught before it reaches a PR. Security updates are not delayed.
 updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     commit-message:
       prefix: "ci(deps)"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "pip"
     directory: "/tests"
@@ -13,3 +30,5 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(python)"
+    cooldown:
+      default-days: 7

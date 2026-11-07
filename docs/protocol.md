@@ -142,7 +142,8 @@ elfogad:
 alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
 feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő
 kérésére, közvetlenül a forrásból, például Hugging Face-ről vagy GitHubról; a CFA4 tárhelyén súly
-nincs). CFA4 ADR 0006, 2. pont, István döntése, 2026-11-07. Ebből következik:
+nincs). CFA4-AI_modules ADR 0008 (`docs/adr/ADR-0008-ai-processing-layer.md`, korábban ADR 0006),
+2. pont, István döntése, 2026-11-07. Ebből következik:
 
 - A `weights` és a `dataset` rész `NOASSERTION`, `unknown` vagy `no` értéke egyik workerben sem
   tiltja le az implementációt, a CFA4-gyel szállított GPL-es workerekben sem.

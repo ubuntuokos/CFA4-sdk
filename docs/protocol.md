@@ -60,8 +60,8 @@ shutdown                   ->  (a worker kilép, kód: 0)
   Megszakítani szakaszhatáron vagy lépéshatáron lehet, ahogy a manifest `behavior.cancellable`
   mezője megadja.
 - **Eszköz:** a `device` értéke `"cpu"`, vagy a gazda által láthatóvá tett GPU-k egyikének
-  indexe. A `caps.devices` sorolja fel, mit tud a worker. Így a CPU-s visszalépés (§3, `oom`)
-  és a csak CPU-s worker is leírható, több GPU-s gépen pedig ugyanaz a worker több eszközt is
+  indexe. A `caps.devices` sorolja fel, mit tud a worker. Így a részleges CPU-s kiürítés (§3, `oom`)
+  és a nem AI-s, csak CPU-s worker is leírható, több GPU-s gépen pedig ugyanaz a worker több eszközt is
   kaphat.
 
 ## 3. Hibák
@@ -70,12 +70,12 @@ Az `error.code` értékei:
 
 | Kód | Jelentés | Mit tesz a gazda |
 |---|---|---|
-| `oom` | elfogyott a VRAM | visszalép: kisebb felbontás, csempézés, kisebb pontosság, végül CPU |
+| `oom` | elfogyott a VRAM | automatikusan csak eredményt nem változtató lépéssel próbálja újra (kisebb köteg, csempézés átfedéssel, szakaszolás, részleges kiürítés RAM-ba); kisebb pontossághoz, kisebb felbontáshoz vagy másik futtatóhoz a felhasználó jóváhagyása kell; teljesen CPU-ra nem lép (AI ADR 0008, 3. pont, 2026-11-07) |
 | `invalid_input` | hibás bemenet vagy paraméter | nem próbálja újra, jelzi a felhasználónak |
 | `model_error` | a modell futás közben hibázott | egyszer újrapróbálja |
 | `model_missing` | a modellfájl hiányzik vagy rossz az ellenőrzőösszege | a felhasználót a modell beszerzésére kéri |
 | `unsupported` | a worker nem ismeri az `impl`-t vagy a kérést | nem próbálja újra |
-| `limit_reached` | a fizetős worker saját korlátja (időtartam, kimeneti felbontás) | jelzi a felhasználónak |
+| `limit_reached` | a fizetős worker saját korlátja (időtartam-korlát nincs; a 2K fölötti vízjel nem hiba) | jelzi a felhasználónak |
 | `cancelled` | a gazda megszakította | nincs teendő |
 | `protocol` | hibás üzenet | lezárja a kapcsolatot |
 | `crash` | a worker belső hibája | újraindítja a workert |
@@ -169,8 +169,9 @@ le, mit jelent a CFA4 a saját felületének, a CLI-nek, a vezérlőcsatornának
 Workerek ilyen üzenetet nem küldenek és nem kapnak. Két fajtája van:
 
 - **`job_status`:** egy job állapota minden állapotváltás után, ahogy a tartós jobtárba kerül. Az
-  állapotok: `queued`, `preparing_model`, `waiting_for_resources`, `loading`, `running`,
-  `cancelling`, `succeeded`, `failed`, `cancelled`, `blocked`. Hibakód (`error`) csak `failed`,
+  állapotok: `scheduled` (későbbi indulásra ütemezve), `queued`, `preparing_model`,
+  `waiting_for_resources`, `loading`, `running`, `paused` (ellenőrzőpont mentve, erőforrások
+  felszabadítva, folytatható; 2. változat, 2026-11-07), `cancelling`, `succeeded`, `failed`, `cancelled`, `blocked`. Hibakód (`error`) csak `failed`,
   blokkolási ok (`blocked`) csak `blocked` állapotban lehet, a `watermarked` csak `succeeded`
   állapotban.
 - **`route_decision`:** „mi futna és miért”. A jegyzék futtatás nélkül megmondja, melyik

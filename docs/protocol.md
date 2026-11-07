@@ -70,7 +70,7 @@ Az `error.code` értékei:
 
 | Kód | Jelentés | Mit tesz a gazda |
 |---|---|---|
-| `oom` | elfogyott a VRAM | automatikusan csak eredményt nem változtató lépéssel próbálja újra (kisebb köteg, csempézés átfedéssel, szakaszolás, részleges kiürítés RAM-ba); kisebb pontossághoz, kisebb felbontáshoz vagy másik futtatóhoz a felhasználó jóváhagyása kell; teljesen CPU-ra nem lép (AI ADR 0008, 3. pont, 2026-11-07) |
+| `oom` | elfogyott a VRAM | automatikusan csak eredményt nem változtató lépéssel próbálja újra (kisebb köteg, csempézés átfedéssel, szakaszolás, részleges kiürítés RAM-ba, vagy az 5. változatú manifest olyan útjára, amelynek `tolerance.automatic` értéke `true`); kisebb pontossághoz, kisebb felbontáshoz, másik futtatóhoz vagy `automatic = false` úthoz a felhasználó jóváhagyása kell (AI ADR 0008, 3. pont, 2026-11-07) |
 | `invalid_input` | hibás bemenet vagy paraméter | nem próbálja újra, jelzi a felhasználónak |
 | `model_error` | a modell futás közben hibázott | egyszer újrapróbálja |
 | `model_missing` | a modellfájl hiányzik vagy rossz az ellenőrzőösszege | a felhasználót a modell beszerzésére kéri |
@@ -136,8 +136,15 @@ elfogad:
 | 2 | `capability.languages` (BCP 47 nyelvcímkék), `AU-nnn` azonosítók a hanglistához, M13–M15 motorcsaládok |
 | 3 | A `license` négy mező (`code`, `dependencies`, `weights`, `dataset`), mindegyikben `spdx` és `commercial` (`yes`, `no`, `unknown`); a `weights` elemeiben kötelező a `url`, a rögzített `revision` és a `format` |
 | 4 | A `resources.vram_mb` és a `resources.fps_hint` kulcsa lehet `any` (vagy `any@fp16` stb.) is: a képkockamérettől független érték hang- és szövegképességekhez. A licenc- és súlyszabály a 3. változaté. |
+| 5 | Kötelező `paths`: az igazolt végrehajtási utak (eszköz, pontosság, offload, csempézés, mért VRAM, RAM és sebesség, a mérés helye, dátuma és a `run-minspec.sh` profilja). Pontosan egy a referencia-út; a többi `tolerance` mezőben adja meg, mennyire térhet el tőle (`exact`, `max_abs`, `psnr_db`, `boundary_ms`), és az `automatic` jelzi, hogy a gazda magától válthat-e rá. A licenc- és súlyszabály a 3., a kulcsszabály a 4. változaté. |
 
-**A 3. és 4. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
+**Elérhetőség az 5. változattól** (AI ADR 0008, 3. pont, tulajdonosi döntés, 2026-11-07): egy
+implementáció egy gépen akkor elérhető, ha legalább egy `paths` eleme elfér rajta a CFA4
+AI-minimum (12 GB VRAM, 16 GB RAM) fölött. Ha csak lassabb út fér el, a gazda a `fps_hint`
+alapján becsült időt mutat, és a felhasználó dönt. GPU nélküli gépen az AI nem támogatott; a
+`cpu` út a GPU melletti másik igazolt út lehet.
+
+**A 3–5. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
 `NOASSERTION`, ha nem ismert. **A CFA4 modellt nem terjeszt, csak a modelleket használó
 alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
 feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő

@@ -52,7 +52,7 @@ size_mb   = 80
 precision = "fp16"
 
 [license]
-notes = "Example only: the host blocks this implementation until the weights and dataset licences are known."
+notes = "Example only: unknown weights and dataset licences do not block; the host shows the four parts and asks for a one-time acceptance before the download (docs/protocol.md section 5)."
 
 [license.code]
 spdx       = "MIT OR Apache-2.0"

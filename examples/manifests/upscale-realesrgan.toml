@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Manifest version 5: validated execution paths (AI ADR 0008, section 3, 2026-11-07).
+# #91 video upscaling with Real-ESRGAN x2plus, which the user downloads. The weights URL,
+# revision and hash are the real release; VRAM, speed and dates are placeholders until the
+# measurement (scripts/dev/vsr-measure in CFA4-AI_modules).
+manifest_version = 5
+
+[capability]
+id      = "AI-091"
+impl    = "upscale-realesrgan"
+version = "0.1.0"
+family  = "M4"
+name    = "Videó-felskálázás"
+shape   = "clip->clip"
+scope   = "frame"
+edition = "free"
+
+[runtime]
+kind      = "onnx"
+providers = ["cuda", "cpu"]
+precision = ["fp32", "fp16"]
+protocol  = 2
+
+[io]
+inputs  = [{ name = "src", type = "frame", color = "rec709", format = "rgb8" }]
+outputs = [{ name = "out", type = "frame", color = "rec709", format = "rgb8" }]
+tiling  = true
+
+[resources]
+vram_mb = { "1080p@fp32" = 7000, "1080p@fp16" = 4200 }
+ram_mb  = 3000
+load_ms = 1500
+
+# The reference path: full precision on the GPU.
+[[paths]]
+id        = "cuda-fp32"
+reference = true
+provider  = "cuda"
+precision = "fp32"
+offload   = "none"
+tiling    = true
+vram_mb   = { "1080p" = 7000 }
+fps_hint  = { "1080p" = 2.0 }
+validated = { device = "NVIDIA GeForce RTX 3060 12GB", date = "2026-11-07", profile = "ajanlott" }
+
+# Half precision within 45 dB PSNR of the reference: the host may switch to it on its own.
+[[paths]]
+id        = "cuda-fp16-tiled"
+provider  = "cuda"
+precision = "fp16"
+offload   = "none"
+tiling    = true
+vram_mb   = { "1080p" = 4200 }
+fps_hint  = { "1080p" = 3.5 }
+tolerance = { metric = "psnr_db", value = 45, automatic = true }
+validated = { device = "NVIDIA GeForce RTX 3060 12GB", date = "2026-11-07", profile = "minimum" }
+
+# The CPU path next to the GPU: same result, much slower; the user decides from the estimate.
+[[paths]]
+id        = "cpu-fp32"
+provider  = "cpu"
+precision = "fp32"
+vram_mb   = { "1080p" = 0 }
+ram_mb    = 6000
+fps_hint  = { "1080p" = 0.05 }
+tolerance = { metric = "psnr_db", value = 60, automatic = false }
+validated = { device = "8 cores, AVX2 (run-minspec)", date = "2026-11-07", profile = "minimum" }
+
+[behavior]
+deterministic = true
+seedable      = false
+cancellable   = "chunk"
+checkpoint    = true
+
+[[weights]]
+file      = "realesrgan/RealESRGAN_x2plus.pth"
+url       = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
+revision  = "v0.2.1"
+format    = "pt"
+sha256    = "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb"
+size_mb   = 64
+precision = "fp32"
+
+[license]
+notes = "The weights are BSD-3-Clause; the training data (DIV2K research-only, Flickr2K and OST without a licence) is the user's responsibility: the host shows the four parts and asks for a one-time acceptance before the download."
+
+[license.code]
+spdx       = "GPL-3.0-or-later"
+commercial = "yes"
+
+[license.dependencies]
+spdx       = "MIT"
+commercial = "yes"
+url        = "https://github.com/microsoft/onnxruntime/blob/main/LICENSE"
+
+[license.weights]
+spdx       = "BSD-3-Clause"
+commercial = "yes"
+
+[license.dataset]
+spdx       = "NOASSERTION"
+commercial = "unknown"

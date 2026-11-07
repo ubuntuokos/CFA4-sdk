@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/host.schema.json",
   "title": "CFA4 AI host report",
-  "description": "What the CFA4 host reports about AI jobs and implementation choice to its own UI, CLI, control channel and MCP. Version 1. Not part of the worker protocol: workers never send or receive these.",
+  "description": "What the CFA4 host reports about AI jobs and implementation choice to its own UI, CLI, control channel and MCP. Version 2 (2026-11-07: scheduled and paused states). Not part of the worker protocol: workers never send or receive these.",
   "oneOf": [
     { "$ref": "#/$defs/jobStatus" },
     { "$ref": "#/$defs/routeDecision" }
@@ -21,10 +21,10 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
     },
     "state": {
-      "description": "Job lifecycle. succeeded, failed and cancelled are final; blocked waits for the user (model, licence, hardware).",
+      "description": "Job lifecycle. succeeded, failed and cancelled are final; blocked waits for the user (model, licence, hardware); scheduled waits for its start time; paused has saved its checkpoint, released its resources and can resume.",
       "enum": [
-        "queued", "preparing_model", "waiting_for_resources", "loading", "running",
-        "cancelling", "succeeded", "failed", "cancelled", "blocked"
+        "scheduled", "queued", "preparing_model", "waiting_for_resources", "loading", "running",
+        "paused", "cancelling", "succeeded", "failed", "cancelled", "blocked"
       ]
     },
     "check": {

@@ -10,7 +10,7 @@ tartalmaz belőle kódot.
 |---|---|
 | [`docs/protocol.md`](docs/protocol.md) | A gazda és a worker közötti JSON-lines protokoll, 2. változat (az 1. is érvényes) |
 | [`schemas/protocol.schema.json`](schemas/protocol.schema.json) | A protokoll üzeneteinek JSON Schemája |
-| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája, 4. változat (négy licencmező, rögzített súlyforrás, képkockamérettől független erőforráskulcs) |
+| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája, 5. változat (négy licencmező, rögzített súlyforrás, képkockamérettől független erőforráskulcs, igazolt végrehajtási utak) |
 | [`schemas/host.schema.json`](schemas/host.schema.json) | Amit a CFA4 a saját felületének, CLI-jének és MCP-jének jelent: a jobállapotok (10 állapot) és a „mi futna és miért” útválasztási döntés |
 | [`examples/`](examples) | Mintamanifestek, egy teljes mintabeszélgetés és gazdajelentések |
 | [`crates/cfa4-ai-protocol`](crates/cfa4-ai-protocol) | Rust crate: üzenettípusok, érvényesség-ellenőrzés, JSON-lines kódolás, verzióegyeztetés |

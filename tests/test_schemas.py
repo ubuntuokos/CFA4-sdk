@@ -233,6 +233,96 @@ class ManifestSchema(unittest.TestCase):
         upgraded["manifest_version"] = 4
         self.assertEqual([e.message for e in self.validator.iter_errors(upgraded)], [])
 
+    def test_version_5_validated_paths(self):
+        manifests = dict(self.manifests())
+        v5 = manifests[EXAMPLES / "manifests" / "upscale-realesrgan.toml"]
+        self.assertEqual(v5["manifest_version"], 5)
+        self.assertEqual(sum(1 for p in v5["paths"] if p.get("reference")), 1)
+
+        # paths belongs to version 5, and version 5 requires it.
+        broken = copy.deepcopy(
+            manifests[EXAMPLES / "manifests" / "align-wav2vec2.toml"]
+        )
+        broken["paths"] = copy.deepcopy(v5["paths"])
+        self.assert_invalid(broken, "paths in version 4")
+        broken = copy.deepcopy(v5)
+        del broken["paths"]
+        self.assert_invalid(broken, "version 5 without paths")
+        broken = copy.deepcopy(v5)
+        broken["paths"] = []
+        self.assert_invalid(broken, "empty paths")
+
+        # Exactly one reference path, without a tolerance; every other path has one.
+        broken = copy.deepcopy(v5)
+        for path in broken["paths"]:
+            path.pop("reference", None)
+        self.assert_invalid(broken, "no reference path")
+        broken = copy.deepcopy(v5)
+        broken["paths"][1]["reference"] = True
+        del broken["paths"][1]["tolerance"]
+        self.assert_invalid(broken, "two reference paths")
+        broken = copy.deepcopy(v5)
+        broken["paths"][0]["tolerance"] = {
+            "metric": "exact",
+            "value": 0,
+            "automatic": True,
+        }
+        self.assert_invalid(broken, "tolerance on the reference path")
+        broken = copy.deepcopy(v5)
+        del broken["paths"][1]["tolerance"]
+        self.assert_invalid(broken, "non-reference path without tolerance")
+        broken = copy.deepcopy(v5)
+        del broken["paths"][1]["tolerance"]["automatic"]
+        self.assert_invalid(broken, "tolerance without automatic")
+
+        for why, key, value in [
+            ("unknown provider", "provider", "vulkan"),
+            ("unknown offload", "offload", "full"),
+            ("bad vram key", "vram_mb", {"2k": 100}),
+            ("missing validation", "validated", None),
+            (
+                "unknown profile",
+                "validated",
+                {"device": "x", "date": "2026-11-07", "profile": "8gb"},
+            ),
+            (
+                "bad date",
+                "validated",
+                {"device": "x", "date": "7 Nov", "profile": "minimum"},
+            ),
+        ]:
+            with self.subTest(why=why):
+                broken = copy.deepcopy(v5)
+                if value is None:
+                    del broken["paths"][0][key]
+                else:
+                    broken["paths"][0][key] = value
+                self.assert_invalid(broken, why)
+
+        # Version 5 keeps the version 3 licence and weights rules and the version 4 keys.
+        broken = copy.deepcopy(v5)
+        broken["weights"][0]["revision"] = "main"
+        self.assert_invalid(broken, "floating revision in v5")
+        upgraded = copy.deepcopy(
+            manifests[EXAMPLES / "manifests" / "align-wav2vec2.toml"]
+        )
+        upgraded["manifest_version"] = 5
+        upgraded["paths"] = [
+            {
+                "id": "cuda-fp32",
+                "reference": True,
+                "provider": "cuda",
+                "precision": "fp32",
+                "vram_mb": {"any": 1500},
+                "validated": {
+                    "device": "RTX 3060 12GB",
+                    "date": "2026-11-07",
+                    "profile": "minimum",
+                },
+            }
+        ]
+        self.assertEqual([e.message for e in self.validator.iter_errors(upgraded)], [])
+
 
 class ProtocolSchema(unittest.TestCase):
     validator = load_schema("protocol.schema.json")

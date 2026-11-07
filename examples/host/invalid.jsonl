@@ -5,7 +5,7 @@
 {"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"running","at":"2026-10-30T12:00:00Z","blocked":[{"check":"vram","detail":"x"}]}
 {"type":"job_status","job":"j-1","capability":"AI-091","impl":"a","state":"running","at":"2026-10-30T12:00:00Z","watermarked":true}
 {"type":"job_status","job":"j-1","capability":"AI-091","state":"running","at":"2026-10-30T12:00:00Z"}
-{"type":"job_status","job":"j-1","capability":"AI-091","state":"paused","at":"2026-10-30T12:00:00Z"}
+{"type":"job_status","job":"j-1","capability":"AI-091","state":"sleeping","at":"2026-10-30T12:00:00Z"}
 {"type":"job_status","job":"j-1","capability":"AI-091","state":"queued","at":"2026-10-30 12:00:00"}
 {"type":"job_status","job":"j 1","capability":"AI-091","state":"queued","at":"2026-10-30T12:00:00Z"}
 {"type":"job_status","job":"j-1","capability":"AI-91","state":"queued","at":"2026-10-30T12:00:00Z"}

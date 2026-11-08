@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""CFA4 AI worker SDK, protocol version 2 (version 1 still accepted). See ``docs/protocol.md``."""
+"""CFA4 AI worker SDK, protocol version 3 (versions 1 and 2 still accepted). See ``docs/protocol.md``."""
 
 from .protocol import (
     ERROR_CODES,

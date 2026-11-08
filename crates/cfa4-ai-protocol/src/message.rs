@@ -256,16 +256,6 @@ pub struct Limits {
     pub max_jobs: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_buffer_bytes: Option<u64>,
-    /// Usage cap a paid worker enforces itself, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_duration_s: Option<f64>,
-    /// Output-quality cap a paid worker enforces itself, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_output_height: Option<u32>,
-    /// Version 2: without a licence key, output taller than this carries a
-    /// visible watermark the worker adds itself.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub watermark_above_height: Option<u32>,
 }
 
 /// Version 2: an optional behaviour a worker declares in [`Caps`].
@@ -297,10 +287,6 @@ pub struct Caps {
     /// Version 2.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<Vec<Feature>>,
-    /// Version 2: the implementation the host runs on exported frames that
-    /// contain this worker's output.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub post_export: Option<String>,
 }
 
 /// Host -> worker: load an implementation's weights onto a device.
@@ -437,7 +423,6 @@ pub enum ErrorCode {
     ModelError,
     ModelMissing,
     Unsupported,
-    LimitReached,
     Cancelled,
     Protocol,
     Crash,

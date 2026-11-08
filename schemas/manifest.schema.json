@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/manifest.schema.json",
   "title": "CFA4 AI capability manifest",
-  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 5 (validated execution paths); versions 1 (no languages, AI- ids, M1-M12), 2 (one-field licence, weights without url, revision and format), 3 and 4 are still accepted.",
+  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 6 (2026-11-08: CFA4 has no paid part, the edition field is gone from every version); versions 1 (no languages, AI- ids, M1-M12), 2 (one-field licence, weights without url, revision and format), 3, 4 and 5 (validated execution paths, as in 6) are still accepted.",
   "type": "object",
   "additionalProperties": false,
   "allOf": [
@@ -21,7 +21,7 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "enum": [3, 4, 5] } } },
+      "if": { "properties": { "manifest_version": { "enum": [3, 4, 5, 6] } } },
       "then": {
         "properties": {
           "license": { "$ref": "#/$defs/licenseV3" },
@@ -36,7 +36,7 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "enum": [4, 5] } } },
+      "if": { "properties": { "manifest_version": { "enum": [4, 5, 6] } } },
       "else": {
         "properties": {
           "resources": {
@@ -49,14 +49,14 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "const": 5 } } },
+      "if": { "properties": { "manifest_version": { "enum": [5, 6] } } },
       "then": { "required": ["paths"] },
       "else": { "properties": { "paths": false } }
     }
   ],
   "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
   "properties": {
-    "manifest_version": { "enum": [1, 2, 3, 4, 5] },
+    "manifest_version": { "enum": [1, 2, 3, 4, 5, 6] },
     "capability": {
       "type": "object",
       "additionalProperties": false,
@@ -100,10 +100,6 @@
           "maxItems": 512,
           "uniqueItems": true,
           "items": { "type": "string", "maxLength": 64, "pattern": "^(?:(?:[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,3}|[A-Za-z]{4,8})(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*(?:-[0-9A-WY-Za-wy-z](?:-[A-Za-z0-9]{2,8})+)*(?:-[Xx](?:-[A-Za-z0-9]{1,8})+)?|[Xx](?:-[A-Za-z0-9]{1,8})+)$" }
-        },
-        "edition": {
-          "description": "Informational only; the core never enforces it.",
-          "enum": ["free", "paid"]
         }
       },
       "if": { "properties": { "scope": { "const": "window" } } },

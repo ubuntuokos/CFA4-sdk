@@ -11,7 +11,7 @@ from importlib import resources
 
 from ._schema import Validator
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 MIN_PROTOCOL_VERSION = 1
 SOCKET_ENV = "CFA4_AI_SOCKET"
 SHM_PREFIX = "/cfa4-ai-"
@@ -25,7 +25,6 @@ ERROR_CODES = (
     "model_error",
     "model_missing",
     "unsupported",
-    "limit_reached",
     "cancelled",
     "protocol",
     "crash",

@@ -13,7 +13,6 @@ name      = "Felirat-időzítés (angol)"
 shape     = "audio+text->json"
 scope     = "clip"
 languages = ["en"]
-edition   = "free"
 
 [runtime]
 kind      = "onnx"

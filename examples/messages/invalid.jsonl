@@ -11,6 +11,6 @@
 {"type":"load","id":1,"impl":"x","device":-1}
 {"type":"load","id":1,"impl":"x"}
 {"type":"caps","id":0,"reply_to":0,"protocol":1,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1},"features":["cancel"]}
-{"type":"caps","id":0,"reply_to":0,"protocol":1,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1,"watermark_above_height":1080}}
+{"type":"caps","id":0,"reply_to":0,"protocol":3,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1,"watermark_above_height":1080}}
 {"type":"caps","id":0,"reply_to":0,"protocol":2,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1},"features":["teleport"]}
-{"type":"caps","id":0,"reply_to":0,"protocol":2,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1,"watermark_above_height":0}}
+{"type":"error","id":4,"job":"j-1","code":"limit_reached","message":"no paid limits in CFA4 (protocol 3)"}

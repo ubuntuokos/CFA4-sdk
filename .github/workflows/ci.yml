@@ -65,7 +65,7 @@ jobs:
           echo "${CARGO_DENY_SHA256}  ${name}.tar.gz" | sha256sum -c -
           tar xzf "${name}.tar.gz"
           install -m 0755 "${name}/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
-      - name: Dependency licences, sources and bans (closed workers link this SDK)
+      - name: Dependency licences, sources and bans (workers under any licence link this SDK)
         run: cargo deny check licenses sources bans
       - name: Security advisories (RustSec)
         run: cargo deny check advisories

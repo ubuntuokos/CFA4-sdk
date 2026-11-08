@@ -210,17 +210,6 @@ fn caps(m: &Caps) -> Check {
     if l.max_buffer_bytes == Some(0) {
         return fail("caps.limits.max_buffer_bytes", "must be at least 1");
     }
-    if let Some(d) = l.max_duration_s {
-        if !(d.is_finite() && d > 0.0) {
-            return fail("caps.limits.max_duration_s", "must be a positive number");
-        }
-    }
-    if l.max_output_height == Some(0) {
-        return fail("caps.limits.max_output_height", "must be at least 1");
-    }
-    if l.watermark_above_height == Some(0) {
-        return fail("caps.limits.watermark_above_height", "must be at least 1");
-    }
     if let Some(devices) = &m.devices {
         let mut seen = HashSet::new();
         if !devices.iter().all(|d| seen.insert(*d)) {
@@ -233,22 +222,8 @@ fn caps(m: &Caps) -> Check {
             return fail("caps.features", "duplicate feature");
         }
     }
-    if let Some(i) = &m.post_export {
-        slug("caps.post_export", i)?;
-    }
-    if m.protocol == 1 {
-        if m.features.is_some() {
-            return fail("caps.features", "not in protocol version 1");
-        }
-        if m.post_export.is_some() {
-            return fail("caps.post_export", "not in protocol version 1");
-        }
-        if l.watermark_above_height.is_some() {
-            return fail(
-                "caps.limits.watermark_above_height",
-                "not in protocol version 1",
-            );
-        }
+    if m.protocol == 1 && m.features.is_some() {
+        return fail("caps.features", "not in protocol version 1");
     }
     Ok(())
 }
@@ -457,8 +432,8 @@ mod tests {
             "caps.limits.max_jobs"
         );
         assert_eq!(
-            field_of(&caps.replace("\"max_jobs\":1", "\"max_jobs\":1,\"max_duration_s\":0")),
-            "caps.limits.max_duration_s"
+            field_of(&caps.replace("\"max_jobs\":1", "\"max_jobs\":1,\"max_buffer_bytes\":0")),
+            "caps.limits.max_buffer_bytes"
         );
         assert_eq!(
             field_of(&caps.replace("}}", "},\"devices\":[0,0]}")),
@@ -468,29 +443,37 @@ mod tests {
 
     #[test]
     fn caps_version_2_fields() {
-        let v2 = r#"{"type":"caps","id":0,"reply_to":0,"protocol":2,"worker":{"name":"w","version":"1"},"impls":["a","wm"],"limits":{"max_jobs":1,"watermark_above_height":1080},"features":["cancel","resume"],"post_export":"wm"}"#;
+        let v2 = r#"{"type":"caps","id":0,"reply_to":0,"protocol":2,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1},"features":["cancel","resume"]}"#;
         assert!(decode(v2.as_bytes()).is_ok());
+        assert!(decode(v2.replace("\"protocol\":2", "\"protocol\":3").as_bytes()).is_ok());
         assert_eq!(
             field_of(&v2.replace("\"cancel\",\"resume\"", "\"cancel\",\"cancel\"")),
             "caps.features"
-        );
-        assert_eq!(
-            field_of(&v2.replace("1080", "0")),
-            "caps.limits.watermark_above_height"
-        );
-        assert_eq!(
-            field_of(&v2.replace("\"post_export\":\"wm\"", "\"post_export\":\"Wm\"")),
-            "caps.post_export"
         );
         assert!(decode(v2.replace("\"resume\"", "\"teleport\"").as_bytes()).is_err());
         let v1 = v2.replace("\"protocol\":2", "\"protocol\":1");
         assert_eq!(field_of(&v1), "caps.features");
         let v1 = v1.replace(",\"features\":[\"cancel\",\"resume\"]", "");
-        assert_eq!(field_of(&v1), "caps.post_export");
-        let v1 = v1.replace(",\"post_export\":\"wm\"", "");
-        assert_eq!(field_of(&v1), "caps.limits.watermark_above_height");
-        let v1 = v1.replace(",\"watermark_above_height\":1080", "");
         assert!(decode(v1.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn paid_worker_fields_are_gone() {
+        // Version 3 (owner decision 2026-11-08): CFA4 has no paid part, so the
+        // licence-key watermark, the post-export step, the usage caps and the
+        // limit_reached code are rejected in every protocol version.
+        let caps = r#"{"type":"caps","id":0,"reply_to":0,"protocol":3,"worker":{"name":"w","version":"1"},"impls":["a"],"limits":{"max_jobs":1}}"#;
+        assert!(decode(caps.as_bytes()).is_ok());
+        for extra in [
+            "\"max_jobs\":1,\"watermark_above_height\":1080",
+            "\"max_jobs\":1,\"max_duration_s\":30",
+            "\"max_jobs\":1,\"max_output_height\":1080",
+        ] {
+            assert!(decode(caps.replace("\"max_jobs\":1", extra).as_bytes()).is_err());
+        }
+        assert!(decode(caps.replace("}}", "},\"post_export\":\"a\"}").as_bytes()).is_err());
+        let error = r#"{"type":"error","id":1,"reply_to":0,"job":"j","code":"limit_reached","message":"m","retryable":false}"#;
+        assert!(decode(error.as_bytes()).is_err());
     }
 
     #[test]

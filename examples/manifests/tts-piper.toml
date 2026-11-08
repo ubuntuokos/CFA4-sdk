@@ -10,7 +10,6 @@ name      = "Beszédgenerálás (Piper-hangok)"
 shape     = "text->audio"
 scope     = "clip"
 languages = ["hu", "en", "de"]
-edition   = "free"
 
 [runtime]
 kind      = "onnx"

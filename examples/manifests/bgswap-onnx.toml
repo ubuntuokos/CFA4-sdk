@@ -9,7 +9,6 @@ name    = "Videóháttér-csere"
 shape   = "clip+mask->clip"
 scope   = "window"
 window  = { before = 4, after = 4 }
-edition = "free"
 
 [runtime]
 kind      = "onnx"

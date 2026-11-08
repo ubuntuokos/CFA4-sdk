@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! The CFA4 AI worker protocol, version 2 (version 1 still accepted): message
+//! The CFA4 AI worker protocol, version 3 (versions 1 and 2 still accepted): message
 //! types, validation and JSON-lines framing. The normative description is
 //! `docs/protocol.md` and `schemas/protocol.schema.json` in the CFA4-sdk
 //! repository; this crate accepts exactly what that schema accepts.
@@ -20,7 +20,7 @@ pub use validate::{
 };
 
 /// The newest protocol version this crate implements.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// The oldest protocol version this crate still accepts.
 pub const MIN_PROTOCOL_VERSION: u32 = 1;

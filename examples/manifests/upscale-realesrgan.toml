@@ -13,7 +13,6 @@ family  = "M4"
 name    = "Videó-felskálázás"
 shape   = "clip->clip"
 scope   = "frame"
-edition = "free"
 
 [runtime]
 kind      = "onnx"

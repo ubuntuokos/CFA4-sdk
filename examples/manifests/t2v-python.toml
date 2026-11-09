@@ -8,7 +8,6 @@ family  = "M1"
 name    = "Szövegből videó (kis modell)"
 shape   = "text->clip"
 scope   = "generative"
-edition = "paid"
 
 [runtime]
 kind      = "python"

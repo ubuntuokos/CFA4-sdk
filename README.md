@@ -2,15 +2,16 @@
 
 A CFA4 videószerkesztő AI-workereinek nyilvános szerződése: a worker-protokoll, a
 képesség-manifest sémája, és később a Rust és Python SDK. Licence **MIT OR Apache-2.0**, így
-GPL-es és zárt, fizetős worker egyaránt építhet rá. A CFA4 maga (GPL-3.0-or-later) a
+bárki, bármilyen licenccel írhat rá workert. A CFA4-nek nincs fizetős része (2026-11-08): a
+protokollban nincs licenckulcs, vízjel vagy használati korlát. A CFA4 maga (GPL-3.0-or-later) a
 [CFA4-AI_modules](https://github.com/ubuntuokos/CFA4-AI_modules) repóban van, ez a repó nem
 tartalmaz belőle kódot.
 
 | Hely | Tartalom |
 |---|---|
-| [`docs/protocol.md`](docs/protocol.md) | A gazda és a worker közötti JSON-lines protokoll, 2. változat (az 1. is érvényes) |
+| [`docs/protocol.md`](docs/protocol.md) | A gazda és a worker közötti JSON-lines protokoll, 3. változat (az 1. és a 2. is érvényes; nincs fizetős rész) |
 | [`schemas/protocol.schema.json`](schemas/protocol.schema.json) | A protokoll üzeneteinek JSON Schemája |
-| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája, 5. változat (négy licencmező, rögzített súlyforrás, képkockamérettől független erőforráskulcs, igazolt végrehajtási utak) |
+| [`schemas/manifest.schema.json`](schemas/manifest.schema.json) | A képesség-manifest (TOML) JSON Schemája, 6. változat (négy licencmező, rögzített súlyforrás, képkockamérettől független erőforráskulcs, igazolt végrehajtási utak) |
 | [`schemas/host.schema.json`](schemas/host.schema.json) | Amit a CFA4 a saját felületének, CLI-jének és MCP-jének jelent: a jobállapotok (10 állapot) és a „mi futna és miért” útválasztási döntés |
 | [`examples/`](examples) | Mintamanifestek, egy teljes mintabeszélgetés és gazdajelentések |
 | [`crates/cfa4-ai-protocol`](crates/cfa4-ai-protocol) | Rust crate: üzenettípusok, érvényesség-ellenőrzés, JSON-lines kódolás, verzióegyeztetés |

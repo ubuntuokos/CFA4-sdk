@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Every source file carries the SDK's permissive SPDX header, and no GPL
-# text slips in: closed paid workers must be able to build on this repo.
+# text slips in: workers under any licence must be able to build on this repo.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -1,15 +1,18 @@
-# CFA4 AI worker-protokoll, 2. változat
+# CFA4 AI worker-protokoll, 3. változat
 
-> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-07 ·
-> **Változás:** minor (2. változat: `caps.features`, `caps.post_export`,
-> `caps.limits.watermark_above_height`; az 1. változat érvényes marad) ·
+> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-08 ·
+> **Változás:** major (3. változat: a CFA4-nek nincs fizetős része, ezért a licenckulcsos vízjel,
+> az export utáni lépés, a használati korlátok és a `limit_reached` hibakód minden változatból
+> kikerült; az 1. és a 2. változat ezek nélkül érvényes marad) ·
 > **Séma:** [`schemas/protocol.schema.json`](../schemas/protocol.schema.json), a gazda felé
 > mutatott állapotokhoz [`schemas/host.schema.json`](../schemas/host.schema.json)
 
 A CFA4 (a „gazda”) az AI-modelleket külön worker-folyamatokban futtatja. Ez a leírás a gazda és
 a worker közötti beszélgetést rögzíti. A worker bármilyen nyelven és bármilyen licenccel
 megírható. A gazda a CFA4 GPL-3.0-or-later licencű része, ez a protokoll és az SDK viszont
-MIT OR Apache-2.0 licencű, ezért a zárt, fizetős workerek is szabadon használhatják.
+MIT OR Apache-2.0 licencű, hogy bárki, bármilyen licenccel írhasson rá workert. A CFA4-nek nincs
+fizetős része (tulajdonosi döntés, 2026-11-08): a protokollban nincs licenckulcs, vízjel vagy
+használati korlát.
 
 ## 1. Csatorna
 
@@ -75,7 +78,6 @@ Az `error.code` értékei:
 | `model_error` | a modell futás közben hibázott | egyszer újrapróbálja |
 | `model_missing` | a modellfájl hiányzik vagy rossz az ellenőrzőösszege | a felhasználót a modell beszerzésére kéri |
 | `unsupported` | a worker nem ismeri az `impl`-t vagy a kérést | nem próbálja újra |
-| `limit_reached` | a fizetős worker saját korlátja (időtartam-korlát nincs; a 2K fölötti vízjel nem hiba) | jelzi a felhasználónak |
 | `cancelled` | a gazda megszakította | nincs teendő |
 | `protocol` | hibás üzenet | lezárja a kapcsolatot |
 | `crash` | a worker belső hibája | újraindítja a workert |
@@ -83,37 +85,18 @@ Az `error.code` értékei:
 A worker összeomlása nem omlaszthatja össze a CFA4-et. Ha a socket bezárul, a gazda minden
 futó feladatot `crash` hibával zár le, és újraindítja a workert.
 
-## 4. Korlátok és vízjel a fizetős workerekben
+## 4. Nincs fizetős korlát és vízjel
 
-A `caps.limits.max_duration_s` és a `caps.limits.max_output_height` mező tájékoztató jellegű: a
-korlátot a worker maga tartatja be, és túllépéskor `limit_reached` hibát küld. A GPL-es gazda
-semmilyen korlátot nem tartalmaz és nem kényszerít ki.
+A CFA4-nek nincs fizetős része (tulajdonosi döntés, 2026-11-08; CFA4-AI_modules ADR 0008,
+8. pont). A protokollban ezért nincs licenckulcs, használati, időtartam- vagy felbontáskorlát,
+licenckulcshoz kötött vízjel és export utáni lépés. A 2. változat `caps.post_export` és
+`caps.limits.watermark_above_height` mezője, valamint a `caps.limits.max_duration_s`,
+`caps.limits.max_output_height` mező és a `limit_reached` hibakód a 3. változattól egyik
+verzióban sem fogadható el (egyetlen worker sem valósította meg őket). A `caps.limits` csak
+erőforrás-adatot tartalmaz (`max_jobs`, `max_buffer_bytes`).
 
-**Vízjel** (2. változat). A `caps.limits.watermark_above_height` azt mondja meg, hogy licenckulcs
-nélkül ennél magasabb kimenetre a worker látható vízjelet tesz; a CFA4 ingyenes határa 2K
-(DCI, 2048×1080), ezért ennek értéke 1080. A gazda ebből előre megmondja a felületen, hogy a
-kimenet vízjeles lesz, a `result.watermarked` pedig utólag jelzi. A vízjel képét és helyét a
-worker adja, a gazda nem rajzol semmit. A CFA4 zárt workereiben a vízjel a CFA logó: a kép jobb
-felső sarkában, 50%-os átlátszósággal, minden képkockán; magassága a képmagasság 8%-a, a jobb
-felső sarka a jobb és a felső képszéltől a képméret 5%-ára van (EBU R 95 grafikai biztonsági sáv).
-
-**Export utáni lépés** (2. változat). Ha a worker megadja a `caps.post_export` mezőt (az
-`impls` egyik elemét), a gazda exportkor minden olyan kész képkockát, amelyen ennek a workernek a
-kimenete látszik, egy szokásos `run` üzenettel visszaküld neki ezzel az `impl`-lel, mielőtt a fájl
-elkészül. A `run` mezői:
-
-- `inputs.src` és `outputs.out`: a kész exportkocka, azonos geometriával és formátummal;
-- `tier`: `"final"`;
-- `params.sources`: azoknak a joboknak a listája, amelyek kimenete a kockán van, elemenként
-  `job` (a jobazonosító), `rect` (`[x, y, szélesség, magasság]` pixelben, a kockán belül),
-  `crop` (a kimenet látható része a saját képén, szintén `[x, y, szélesség, magasság]`) és
-  `frame` (a kimenet képkockájának indexe).
-
-A worker maga dönt arról, mit tesz a kockával; a CFA4 vízjeles workere ellenőrzi, hogy a logó
-sarka látható-e, és ha kitakarták, kivágták vagy a nagyítás miatt kiesett, a teljes képre tesz
-vízjelet. A gazda ebben a lépésben semmit sem tilt és semmit sem ellenőriz: csak továbbítja a
-kockát, és azt írja a fájlba, amit visszakap. Ha a worker nem fut, nem érhető el vagy hibával
-válaszol, az export hibával leáll, mert a kimenet a worker feltétele nélkül nem készülhet el.
+A `result.watermarked` megmarad: azt jelzi, hogy a worker látható jelölést tett a kimenetre egy
+tartalmi szabály miatt (például az arccsere „AI által módosított” jelölése), nem fizetés miatt.
 
 ## 5. Változáskezelés
 
@@ -125,7 +108,8 @@ protokollverziót kap. A gazda egyszerre több verziót is támogathat, a közö
 | Protokollverzió | Változás |
 |---|---|
 | 1 | Első változat |
-| 2 | `caps.features`, `caps.post_export`, `caps.limits.watermark_above_height` |
+| 2 | `caps.features` (a 2026-11-07-i `caps.post_export` és `caps.limits.watermark_above_height` a 3. változattal kikerült) |
+| 3 | A CFA4-nek nincs fizetős része (2026-11-08): a `caps.post_export`, a `caps.limits.watermark_above_height`, `max_duration_s` és `max_output_height`, valamint a `limit_reached` hibakód minden változatból kikerült (4. pont). Egyébként azonos a 2. változattal. |
 
 A manifest verzióját a `manifest_version` mező adja meg, és a séma minden támogatott verziót
 elfogad:
@@ -137,6 +121,7 @@ elfogad:
 | 3 | A `license` négy mező (`code`, `dependencies`, `weights`, `dataset`), mindegyikben `spdx` és `commercial` (`yes`, `no`, `unknown`); a `weights` elemeiben kötelező a `url`, a rögzített `revision` és a `format` |
 | 4 | A `resources.vram_mb` és a `resources.fps_hint` kulcsa lehet `any` (vagy `any@fp16` stb.) is: a képkockamérettől független érték hang- és szövegképességekhez. A licenc- és súlyszabály a 3. változaté. |
 | 5 | Kötelező `paths`: az igazolt végrehajtási utak (eszköz, pontosság, offload, csempézés, mért VRAM, RAM és sebesség, a mérés helye, dátuma és a `run-minspec.sh` profilja). Pontosan egy a referencia-út; a többi `tolerance` mezőben adja meg, mennyire térhet el tőle (`exact`, `max_abs`, `psnr_db`, `boundary_ms`), és az `automatic` jelzi, hogy a gazda magától válthat-e rá. A licenc- és súlyszabály a 3., a kulcsszabály a 4. változaté. |
+| 6 | Azonos az 5. változattal; az `edition` (`free`/`paid`) mező minden változatból kikerült, mert a CFA4-nek nincs fizetős része (2026-11-08). |
 
 **Elérhetőség az 5. változattól** (AI ADR 0008, 3. pont, tulajdonosi döntés, 2026-11-07): egy
 implementáció egy gépen akkor elérhető, ha legalább egy `paths` eleme elfér rajta a CFA4
@@ -144,7 +129,7 @@ AI-minimum (12 GB VRAM, 16 GB RAM) fölött. Ha csak lassabb út fér el, a gazd
 alapján becsült időt mutat, és a felhasználó dönt. GPU nélküli gépen az AI nem támogatott; a
 `cpu` út a GPU melletti másik igazolt út lehet.
 
-**A 3–5. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
+**A 3–6. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
 `NOASSERTION`, ha nem ismert. **A CFA4 modellt nem terjeszt, csak a modelleket használó
 alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
 feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő
@@ -191,3 +176,5 @@ Workerek ilyen üzenetet nem küldenek és nem kapnak. Két fajtája van:
 | Gazdajelentés-verzió | Változás |
 |---|---|
 | 1 | Első változat: `job_status`, `route_decision` |
+| 2 | `scheduled` és `paused` állapot (2026-11-07) |
+| 3 | A `limit_reached` hibakód és a `route_decision` `watermark` becslése kikerült, mert a CFA4-nek nincs fizetős része (2026-11-08); a `watermarked` csak tartalmi jelölést jelent (4. pont) |

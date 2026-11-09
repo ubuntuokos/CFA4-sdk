@@ -323,6 +323,23 @@ class ManifestSchema(unittest.TestCase):
         ]
         self.assertEqual([e.message for e in self.validator.iter_errors(upgraded)], [])
 
+    def test_version_6_has_no_edition(self):
+        """CFA4 has no paid part (owner decision 2026-11-08): no edition field anywhere."""
+        manifests = dict(self.manifests())
+        v5 = manifests[EXAMPLES / "manifests" / "upscale-realesrgan.toml"]
+        v6 = copy.deepcopy(v5)
+        v6["manifest_version"] = 6
+        self.assertEqual([e.message for e in self.validator.iter_errors(v6)], [])
+        broken = copy.deepcopy(v6)
+        del broken["paths"]
+        self.assert_invalid(broken, "version 6 without paths")
+        for version, base in [(6, v6), (5, v5)]:
+            for edition in ("free", "paid"):
+                with self.subTest(version=version, edition=edition):
+                    broken = copy.deepcopy(base)
+                    broken["capability"]["edition"] = edition
+                    self.assert_invalid(broken, f"edition in version {version}")
+
 
 class ProtocolSchema(unittest.TestCase):
     validator = load_schema("protocol.schema.json")

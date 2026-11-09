@@ -14,7 +14,6 @@ import threading
 import unittest
 import uuid
 from pathlib import Path
-from typing import ClassVar
 
 from jsonschema import Draft202012Validator
 
@@ -202,10 +201,11 @@ class Codec(unittest.TestCase):
         self.assertEqual(e.exception.code, "line_too_long")
 
     def test_negotiation(self):
-        self.assertEqual(cfa4_ai.negotiate(1, 3), 2)
+        self.assertEqual(cfa4_ai.negotiate(1, 4), 3)
+        self.assertEqual(cfa4_ai.negotiate(1, 2), 2)
         self.assertEqual(cfa4_ai.negotiate(1, 1), 1)
-        self.assertEqual(cfa4_ai.negotiate(2, 3), 2)
-        self.assertIsNone(cfa4_ai.negotiate(3, 4))
+        self.assertEqual(cfa4_ai.negotiate(3, 4), 3)
+        self.assertIsNone(cfa4_ai.negotiate(4, 5))
         self.assertIsNone(cfa4_ai.negotiate(0, 0, 0, 1))
         self.assertTrue(cfa4_ai.accepts(1, 3, 1))
         self.assertFalse(cfa4_ai.accepts(0, 1, 0))
@@ -396,23 +396,18 @@ class ExampleWorkerSession(unittest.TestCase):
 
 
 class CapsVersions(unittest.TestCase):
-    """Version 2 caps fields are sent only when version 2 is negotiated."""
+    """Version 2 caps fields are sent only when version 2 or later is negotiated."""
 
-    class Paid(cfa4_ai.Worker):
-        impls = ("upscale", "watermark")
-        limits: ClassVar[dict[str, int]] = {
-            "max_jobs": 1,
-            "watermark_above_height": 1080,
-        }
+    class Featured(cfa4_ai.Worker):
+        impls = ("upscale",)
         features = ("cancel", "progress")
-        post_export = "watermark"
 
     def caps_for(self, host_max):
         from cfa4_ai.worker import _Loop
 
         host, worker = socket.socketpair()
         thread = threading.Thread(
-            target=lambda: _Loop(self.Paid(), worker).serve(), daemon=True
+            target=lambda: _Loop(self.Featured(), worker).serve(), daemon=True
         )
         thread.start()
         reader = cfa4_ai.MessageReader(host.makefile("rb"))
@@ -433,20 +428,21 @@ class CapsVersions(unittest.TestCase):
         worker.close()
         return caps
 
+    def test_version_3(self):
+        caps = self.caps_for(3)
+        self.assertEqual(caps["protocol"], 3)
+        self.assertEqual(caps["features"], ["cancel", "progress"])
+
     def test_version_2(self):
         caps = self.caps_for(2)
         self.assertEqual(caps["protocol"], 2)
         self.assertEqual(caps["features"], ["cancel", "progress"])
-        self.assertEqual(caps["post_export"], "watermark")
-        self.assertEqual(caps["limits"]["watermark_above_height"], 1080)
 
     def test_version_1_host(self):
         caps = self.caps_for(1)
         self.assertEqual(caps["protocol"], 1)
         self.assertNotIn("features", caps)
-        self.assertNotIn("post_export", caps)
         self.assertEqual(caps["limits"], {"max_jobs": 1})
-        self.assertEqual(self.Paid.limits["watermark_above_height"], 1080)
 
     def test_version_1_rejects_version_2_fields(self):
         caps = {
@@ -459,20 +455,39 @@ class CapsVersions(unittest.TestCase):
             "limits": {"max_jobs": 1},
         }
         decode(json.dumps(caps))
-        for key, value in [("features", ["cancel"]), ("post_export", "a")]:
+        with self.assertRaises(ProtocolError):
+            decode(json.dumps({**caps, "features": ["cancel"]}))
+        decode(json.dumps({**caps, "protocol": 2, "features": ["cancel"]}))
+
+    def test_paid_worker_fields_are_gone(self):
+        """Version 3: CFA4 has no paid part (owner decision 2026-11-08)."""
+        caps = {
+            "type": "caps",
+            "id": 0,
+            "reply_to": 0,
+            "protocol": 3,
+            "worker": {"name": "w", "version": "1"},
+            "impls": ["a"],
+            "limits": {"max_jobs": 1},
+        }
+        decode(json.dumps(caps))
+        for key in ("watermark_above_height", "max_duration_s", "max_output_height"):
             with self.subTest(key), self.assertRaises(ProtocolError):
-                decode(json.dumps({**caps, key: value}))
+                decode(json.dumps({**caps, "limits": {"max_jobs": 1, key: 1}}))
+        with self.assertRaises(ProtocolError):
+            decode(json.dumps({**caps, "post_export": "a"}))
         with self.assertRaises(ProtocolError):
             decode(
                 json.dumps(
-                    {**caps, "limits": {"max_jobs": 1, "watermark_above_height": 1}}
+                    {
+                        "type": "error",
+                        "id": 1,
+                        "job": "j",
+                        "code": "limit_reached",
+                        "message": "m",
+                    }
                 )
             )
-        decode(
-            json.dumps(
-                {**caps, "protocol": 2, "features": ["cancel"], "post_export": "a"}
-            )
-        )
 
 
 class UnloadFailure(unittest.TestCase):

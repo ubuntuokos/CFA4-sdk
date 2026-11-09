@@ -84,8 +84,6 @@ class Worker:
     limits: ClassVar[dict[str, int]] = {"max_jobs": 1}
     features = ()
     """Protocol 2: any of ``"cancel"``, ``"progress"``, ``"preview"``, ``"resume"``."""
-    post_export = None
-    """Protocol 2: the impl the host runs on exported frames holding this worker's output."""
 
     def load(self, impl, device, precision, weights_dir):
         """Loads a model; returns the VRAM it uses in MiB."""
@@ -172,13 +170,8 @@ class _Loop:
             caps["worker"]["license"] = self.worker.license
         if self.worker.devices is not None:
             caps["devices"] = list(self.worker.devices)
-        if version >= 2:
-            if self.worker.features:
-                caps["features"] = list(self.worker.features)
-            if self.worker.post_export is not None:
-                caps["post_export"] = self.worker.post_export
-        else:
-            caps["limits"].pop("watermark_above_height", None)
+        if version >= 2 and self.worker.features:
+            caps["features"] = list(self.worker.features)
         self.send(caps)
         for message in self.reader:
             kind = message["type"]

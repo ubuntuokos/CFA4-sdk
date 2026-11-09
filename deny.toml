@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# Closed paid workers link this SDK, so every dependency must be permissive.
+# Workers under any licence link this SDK, so every dependency must be permissive.
 [licenses]
 allow = ["MIT", "Apache-2.0", "Unicode-3.0", "Unlicense", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
 unused-allowed-license = "allow"

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/manifest.schema.json",
   "title": "CFA4 AI capability manifest",
-  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 6 (2026-11-08: CFA4 has no paid part, the edition field is gone from every version); versions 1 (no languages, AI- ids, M1-M12), 2 (one-field licence, weights without url, revision and format), 3, 4 and 5 (validated execution paths, as in 6) are still accepted.",
+  "description": "One implementation of one AI capability. Written as TOML, validated after parsing. Version 7 (2026-11-13: every execution path records its golden-output check against the reference path); versions 1 (no languages, AI- ids, M1-M12), 2 (one-field licence, weights without url, revision and format), 3, 4, 5 and 6 (validated execution paths without the golden check; 6 has no edition field) are still accepted.",
   "type": "object",
   "additionalProperties": false,
   "allOf": [
@@ -21,7 +21,7 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "enum": [3, 4, 5, 6] } } },
+      "if": { "properties": { "manifest_version": { "enum": [3, 4, 5, 6, 7] } } },
       "then": {
         "properties": {
           "license": { "$ref": "#/$defs/licenseV3" },
@@ -36,7 +36,7 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "enum": [4, 5, 6] } } },
+      "if": { "properties": { "manifest_version": { "enum": [4, 5, 6, 7] } } },
       "else": {
         "properties": {
           "resources": {
@@ -49,14 +49,19 @@
       }
     },
     {
-      "if": { "properties": { "manifest_version": { "enum": [5, 6] } } },
+      "if": { "properties": { "manifest_version": { "enum": [5, 6, 7] } } },
       "then": { "required": ["paths"] },
       "else": { "properties": { "paths": false } }
+    },
+    {
+      "if": { "properties": { "manifest_version": { "const": 7 } } },
+      "then": { "properties": { "paths": { "items": { "properties": { "validated": { "required": ["golden"] } } } } } },
+      "else": { "properties": { "paths": { "items": { "properties": { "validated": { "properties": { "golden": false } } } } } } }
     }
   ],
   "required": ["manifest_version", "capability", "runtime", "io", "resources", "license"],
   "properties": {
-    "manifest_version": { "enum": [1, 2, 3, 4, 5, 6] },
+    "manifest_version": { "enum": [1, 2, 3, 4, 5, 6, 7] },
     "capability": {
       "type": "object",
       "additionalProperties": false,
@@ -320,8 +325,8 @@
       "additionalProperties": false,
       "required": ["id", "provider", "precision", "vram_mb", "validated"],
       "if": { "required": ["reference"], "properties": { "reference": { "const": true } } },
-      "then": { "properties": { "tolerance": false } },
-      "else": { "required": ["tolerance"] },
+      "then": { "properties": { "tolerance": false, "validated": { "properties": { "golden": { "properties": { "worst": false } } } } } },
+      "else": { "required": ["tolerance"], "properties": { "validated": { "properties": { "golden": { "required": ["worst"] } } } } },
       "properties": {
         "id": { "$ref": "#/$defs/slug" },
         "reference": { "description": "The path every other path is compared with.", "type": "boolean" },
@@ -361,7 +366,18 @@
           "properties": {
             "device": { "type": "string", "minLength": 1, "maxLength": 120 },
             "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
-            "profile": { "enum": ["ajanlott", "minimum"] }
+            "profile": { "enum": ["ajanlott", "minimum"] },
+            "golden": {
+              "description": "Version 7: the result check against golden outputs. The reference path produced the golden outputs of the set; every other path ran the same cases and worst is its largest deviation from them in its tolerance metric (smallest PSNR for psnr_db). worst must lie within the tolerance: at most value for exact (then 0), max_abs and boundary_ms, at least value for psnr_db. A deterministic reference path must reproduce its golden outputs bit for bit. The host refuses a path whose check is missing or out of tolerance.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["set", "cases"],
+              "properties": {
+                "set": { "description": "Name of the golden input set in the implementation's test data.", "$ref": "#/$defs/slug" },
+                "cases": { "type": "integer", "minimum": 1, "maximum": 100000 },
+                "worst": { "type": "number", "minimum": 0 }
+              }
+            }
           }
         }
       }

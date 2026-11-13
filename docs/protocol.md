@@ -1,6 +1,8 @@
 # CFA4 AI worker-protokoll, 3. változat
 
-> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-08 ·
+> **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-13
+> (manifest 7. változat: arany kimenetes ellenőrzés utanként; gazdajelentés 4. változat: becslés,
+> tájékoztatási kategória, ütemezés, prioritás, végrehajtási út) ·
 > **Változás:** major (3. változat: a CFA4-nek nincs fizetős része, ezért a licenckulcsos vízjel,
 > az export utáni lépés, a használati korlátok és a `limit_reached` hibakód minden változatból
 > kikerült; az 1. és a 2. változat ezek nélkül érvényes marad) ·
@@ -122,6 +124,7 @@ elfogad:
 | 4 | A `resources.vram_mb` és a `resources.fps_hint` kulcsa lehet `any` (vagy `any@fp16` stb.) is: a képkockamérettől független érték hang- és szövegképességekhez. A licenc- és súlyszabály a 3. változaté. |
 | 5 | Kötelező `paths`: az igazolt végrehajtási utak (eszköz, pontosság, offload, csempézés, mért VRAM, RAM és sebesség, a mérés helye, dátuma és a `run-minspec.sh` profilja). Pontosan egy a referencia-út; a többi `tolerance` mezőben adja meg, mennyire térhet el tőle (`exact`, `max_abs`, `psnr_db`, `boundary_ms`), és az `automatic` jelzi, hogy a gazda magától válthat-e rá. A licenc- és súlyszabály a 3., a kulcsszabály a 4. változaté. |
 | 6 | Azonos az 5. változattal; az `edition` (`free`/`paid`) mező minden változatból kikerült, mert a CFA4-nek nincs fizetős része (2026-11-08). |
+| 7 | Minden út `validated.golden` mezőben rögzíti az eredményhelyességi ellenőrzést (2026-11-13; lásd lent). Egyébként azonos a 6. változattal. |
 
 **Elérhetőség az 5. változattól** (AI ADR 0008, 3. pont, tulajdonosi döntés, 2026-11-07): egy
 implementáció egy gépen akkor elérhető, ha legalább egy `paths` eleme elfér rajta a CFA4
@@ -129,7 +132,21 @@ AI-minimum (12 GB VRAM, 16 GB RAM) fölött. Ha csak lassabb út fér el, a gazd
 alapján becsült időt mutat, és a felhasználó dönt. GPU nélküli gépen az AI nem támogatott; a
 `cpu` út a GPU melletti másik igazolt út lehet.
 
-**A 3–6. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
+**Eredményhelyesség a 7. változattól** (AI ADR 0008, 9. pont; ACS 13.5). Egy út tűrése csak
+akkor ér valamit, ha meg is mérték. Ezért a 7. változatban minden út `validated.golden` mezője
+megnevezi az arany bemenetkészletet (`set`) és az esetek számát (`cases`):
+
+- Az arany kimeneteket a **referencia-út** állítja elő. Ha a manifest `behavior.deterministic`
+  értéke `true`, a referencia-út ismételt futása bitre azonos kimenetet ad; ezt a mérés ellenőrzi.
+- Minden **más út** ugyanazokat az eseteket futtatja, és a `worst` mező a legrosszabb eltérését
+  adja meg a referenciától, a saját `tolerance.metric` mértékében (`psnr_db`-nél a legkisebb PSNR).
+- A `worst` a tűrésen belül kell, hogy legyen: `exact`-nál 0, `max_abs`-nál és `boundary_ms`-nál
+  legfeljebb a `value`, `psnr_db`-nél legalább a `value`. A séma ezt nem tudja kifejezni, a gazda
+  ellenőrzi: hiányzó vagy tűrésen kívüli ellenőrzésű utat nem választ.
+- Így a CPU-s és a GPU-s út közötti eltérés (például fp16 a referencia fp32 mellett) számmal
+  igazolt, és az OOM-létra automatikus lépései (3. pont) is csak mért tűrésen belül váltanak.
+
+**A 3–7. változat licencszabálya.** Az `spdx` SPDX-kifejezés, `LicenseRef-…` hivatkozás vagy
 `NOASSERTION`, ha nem ismert. **A CFA4 modellt nem terjeszt, csak a modelleket használó
 alkalmazást.** Az alkalmazás felhasználójának felelőssége, hogy az adott modell felhasználási
 feltételeit megismerje, és a modellt első használatkor maga töltse le (a gazda letöltője az ő
@@ -173,8 +190,25 @@ Workerek ilyen üzenetet nem küldenek és nem kapnak. Két fajtája van:
   feltétel teljesült, vagy `null`, ha egyik sem. Ugyanezek a feltételek adják a `blocked` job
   okait, így a felület mindkét helyen ugyanazt a mondatot mutatja.
 
+**A 4. változat mezői** (2026-11-13; a CFA4 közös feladatsorának, a `cfa4-tasks` crate-nek az
+adatait teszi láthatóvá; mind nem kötelező, a 3. változatú jelentés érvényes marad):
+
+| Mező | Hol | Jelentés |
+|---|---|---|
+| `estimate` | `job_status`; a jelöltnél `estimate.min_s`/`max_s`/`confidence` | A futásidő **tartományként** (`min_s` ≤ `max_s`), soha nem egyetlen ígért szám, bizonyossággal: `medium`, ha az utat ennek a gépnek a `run-minspec.sh`-profiljával mérték, különben `low` |
+| `elapsed_s`, `remaining` | `job_status` | Az eddigi futásidő (várakozás és szünet nélkül), illetve futás és szünet közben a hátralévő idő tartománya |
+| `outlook` | `job_status`, `route_decision`, jelölt | Tájékoztatási kategória indítás előtt: `normal`, `slower`, `very_long` (felajánljuk, nem tiltjuk), `not_executable_now` (egyik igazolt út sem fér el most; az okok a `failed`/`blocked` listában). A két küszöböt a felhasználó állítja, a gazda a becslés `max_s` értékére alkalmazza |
+| `path`, `switched`, `approval` | `job_status`; jelölt | A manifest végrehajtási útja; `switched`: nem a referencia-út fut (a felhasználó tájékoztatást kap); `approval`: az út az eredményt változtatja (`tolerance.automatic = false`), ezért csak jóváhagyással fut. Néma minőségcsökkentés nincs |
+| `class` | `job_status` | Rendszerosztály: `interactive` (P0), `final_render` (R), `background` (P1), `speculative` (P2), ebben a sorrendben |
+| `priority` | `job_status` | A felhasználó prioritása (`low`, `normal`, `high`), egy osztályon belül rendez |
+| `schedule` | `job_status` | Indítási mód: `now`, `when_resources`, `at`, `at_with_resources`. Időponthoz kötelező az `at` (UTC), a `timezone` (IANA) és a `missed` szabály: `run_late` (késve indul), `next_slot` (a következő időpont az időzónájában), `ask_user`. A gép felébresztése nem cél |
+| `missed` | `job_status`, csak `scheduled` állapotban | Az indítás elmaradt (5 percnél több késés) és a szabály `ask_user`: a felhasználó dönt |
+
+A `scheduled` állapotú jobnak mindig van `at` vagy `at_with_resources` módú `schedule` mezője.
+
 | Gazdajelentés-verzió | Változás |
 |---|---|
 | 1 | Első változat: `job_status`, `route_decision` |
 | 2 | `scheduled` és `paused` állapot (2026-11-07) |
 | 3 | A `limit_reached` hibakód és a `route_decision` `watermark` becslése kikerült, mert a CFA4-nek nincs fizetős része (2026-11-08); a `watermarked` csak tartalmi jelölést jelent (4. pont) |
+| 4 | Becslés tartománnyal és bizonyossággal, `elapsed_s`, `remaining`, `outlook`, `path`, `switched`, `approval`, `class`, `priority`, `schedule`, `missed` (2026-11-13) |

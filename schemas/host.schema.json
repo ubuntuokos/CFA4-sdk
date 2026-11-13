@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ubuntuokos/CFA4-sdk/schemas/host.schema.json",
   "title": "CFA4 AI host report",
-  "description": "What the CFA4 host reports about AI jobs and implementation choice to its own UI, CLI, control channel and MCP. Version 3 (2026-11-08: CFA4 has no paid part, no limit_reached code and no watermark prediction; 2026-11-07: scheduled and paused states). Not part of the worker protocol: workers never send or receive these.",
+  "description": "What the CFA4 host reports about AI jobs and implementation choice to its own UI, CLI, control channel and MCP. Version 4 (2026-11-13: time estimates as ranges, outlook, schedule, class, user priority and execution path; 2026-11-08: CFA4 has no paid part, no limit_reached code and no watermark prediction; 2026-11-07: scheduled and paused states). Not part of the worker protocol: workers never send or receive these.",
   "oneOf": [
     { "$ref": "#/$defs/jobStatus" },
     { "$ref": "#/$defs/routeDecision" }
@@ -26,6 +26,61 @@
         "scheduled", "queued", "preparing_model", "waiting_for_resources", "loading", "running",
         "paused", "cancelling", "succeeded", "failed", "cancelled", "blocked"
       ]
+    },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "seconds": { "type": "integer", "minimum": 0, "maximum": 31622400 },
+    "range": {
+      "description": "Version 4. A duration as a range, never one promised number: min_s <= max_s.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_s", "max_s"],
+      "properties": {
+        "min_s": { "$ref": "#/$defs/seconds" },
+        "max_s": { "$ref": "#/$defs/seconds" }
+      }
+    },
+    "estimate": {
+      "description": "Version 4. How long the run takes, with how sure the host is. medium: the path was measured under this machine's run-minspec.sh profile; low: under another profile or an unknown one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_s", "max_s", "confidence"],
+      "properties": {
+        "min_s": { "$ref": "#/$defs/seconds" },
+        "max_s": { "$ref": "#/$defs/seconds" },
+        "confidence": { "enum": ["low", "medium"] }
+      }
+    },
+    "outlook": {
+      "description": "Version 4. What the user is told before starting: normal; slower (above the user's slower threshold); very_long (above the user's very-long threshold, offered, never refused); not_executable_now (no validated path fits this machine now, with the reasons in failed or blocked). The thresholds are user settings; the host applies them to the estimate's max_s.",
+      "enum": ["normal", "slower", "very_long", "not_executable_now"]
+    },
+    "class": {
+      "description": "Version 4. System class, ordered interactive (P0), final_render (R), background (P1), speculative (P2).",
+      "enum": ["interactive", "final_render", "background", "speculative"]
+    },
+    "priority": {
+      "description": "Version 4. The user's priority; orders jobs within one class.",
+      "enum": ["low", "normal", "high"]
+    },
+    "schedule": {
+      "description": "Version 4. How the job starts. now: at once, the user is told if it has to wait; when_resources: whenever the machine has room, silently; at: at a time, the user is told if it has to wait; at_with_resources: from a time on, whenever there is room. The machine is never woken up. missed says what happens when the start time passed by more than the grace period (5 minutes): run_late starts it late, next_slot moves it to the next time in its time zone, ask_user leaves it scheduled with missed = true until the user decides.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["now", "when_resources", "at", "at_with_resources"] },
+        "at": { "$ref": "#/$defs/time" },
+        "timezone": {
+          "description": "IANA time zone the user scheduled in, e.g. Europe/Budapest; at stays UTC.",
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$",
+          "maxLength": 64
+        },
+        "missed": { "enum": ["run_late", "next_slot", "ask_user"] }
+      },
+      "if": { "properties": { "mode": { "enum": ["at", "at_with_resources"] } } },
+      "then": { "required": ["at", "timezone", "missed"] },
+      "else": { "properties": { "at": false, "timezone": false, "missed": false } }
     },
     "check": {
       "description": "One condition the router or resource manager tested, and why it failed.",
@@ -55,6 +110,22 @@
         "state": { "$ref": "#/$defs/state" },
         "at": { "$ref": "#/$defs/time" },
         "attempt": { "description": "1 for the first run, higher after a retry.", "type": "integer", "minimum": 1, "maximum": 100 },
+        "class": { "$ref": "#/$defs/class" },
+        "priority": { "$ref": "#/$defs/priority" },
+        "schedule": { "$ref": "#/$defs/schedule" },
+        "missed": {
+          "description": "Version 4. Only in state scheduled: the start time was missed and the rule is ask_user, so the user decides.",
+          "const": true
+        },
+        "path": { "description": "Version 4. The manifest execution path that runs or would run.", "$ref": "#/$defs/slug" },
+        "switched": {
+          "description": "Version 4. The path is not the reference path; the user is told, and a path that changes the result ran only with the user's approval.",
+          "type": "boolean"
+        },
+        "estimate": { "$ref": "#/$defs/estimate" },
+        "outlook": { "$ref": "#/$defs/outlook" },
+        "elapsed_s": { "description": "Version 4. Running time so far, without paused and waiting time.", "$ref": "#/$defs/seconds" },
+        "remaining": { "description": "Version 4. Only while running or paused: the time still needed.", "$ref": "#/$defs/range" },
         "progress": {
           "type": "object",
           "additionalProperties": false,
@@ -107,6 +178,26 @@
         {
           "if": { "properties": { "state": { "enum": ["loading", "running", "succeeded"] } } },
           "then": { "required": ["impl"] }
+        },
+        {
+          "if": { "properties": { "state": { "const": "scheduled" } } },
+          "then": {
+            "required": ["schedule"],
+            "properties": { "schedule": { "properties": { "mode": { "enum": ["at", "at_with_resources"] } } } }
+          },
+          "else": { "properties": { "missed": false } }
+        },
+        {
+          "if": { "properties": { "state": { "enum": ["running", "paused"] } } },
+          "else": { "properties": { "remaining": false } }
+        },
+        {
+          "if": { "properties": { "state": { "enum": ["running", "paused", "cancelling", "succeeded", "failed", "cancelled"] } } },
+          "else": { "properties": { "elapsed_s": false } }
+        },
+        {
+          "if": { "required": ["switched"] },
+          "then": { "required": ["path"] }
         }
       ]
     },
@@ -134,12 +225,16 @@
           "description": "The implementation that would run, or null when none passes every check.",
           "oneOf": [{ "$ref": "#/$defs/impl" }, { "type": "null" }]
         },
+        "outlook": { "description": "Version 4. The outlook of the chosen candidate; not_executable_now when chosen is null.", "$ref": "#/$defs/outlook" },
         "candidates": {
           "description": "In the router's preference order.",
           "type": "array",
           "items": { "$ref": "#/$defs/candidate" }
         }
-      }
+      },
+      "if": { "properties": { "chosen": { "type": "null" } } },
+      "then": { "properties": { "outlook": { "const": "not_executable_now" } } },
+      "else": { "properties": { "outlook": { "not": { "const": "not_executable_now" } } } }
     },
     "candidate": {
       "type": "object",
@@ -151,12 +246,22 @@
         "worker": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
         "ok": { "description": "Every check passed.", "type": "boolean" },
         "failed": { "type": "array", "items": { "$ref": "#/$defs/check" } },
+        "path": { "description": "Version 4. The manifest execution path the estimate is for.", "$ref": "#/$defs/slug" },
+        "approval": {
+          "description": "Version 4. The path changes the result (its tolerance has automatic = false), so it runs only after the user approves it; never a silent quality drop.",
+          "type": "boolean"
+        },
+        "outlook": { "$ref": "#/$defs/outlook" },
         "estimate": {
           "type": "object",
           "additionalProperties": false,
+          "dependentRequired": { "min_s": ["max_s", "confidence"], "max_s": ["min_s"], "confidence": ["min_s"] },
           "properties": {
             "vram_mb": { "type": "integer", "minimum": 0 },
             "load_ms": { "type": "integer", "minimum": 0 },
+            "min_s": { "description": "Version 4: the run time as a range.", "$ref": "#/$defs/seconds" },
+            "max_s": { "$ref": "#/$defs/seconds" },
+            "confidence": { "enum": ["low", "medium"] },
             "device": {
               "description": "\"cpu\", or the PCI address or UUID of the GPU the resource manager would use.",
               "type": "string",
@@ -166,8 +271,8 @@
         }
       },
       "if": { "properties": { "ok": { "const": true } } },
-      "then": { "properties": { "failed": { "maxItems": 0 } } },
-      "else": { "properties": { "failed": { "minItems": 1 } } }
+      "then": { "properties": { "failed": { "maxItems": 0 }, "outlook": { "not": { "const": "not_executable_now" } } } },
+      "else": { "properties": { "failed": { "minItems": 1 }, "outlook": { "const": "not_executable_now" } } }
     }
   }
 }

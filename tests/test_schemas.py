@@ -340,6 +340,65 @@ class ManifestSchema(unittest.TestCase):
                     broken["capability"]["edition"] = edition
                     self.assert_invalid(broken, f"edition in version {version}")
 
+    def test_version_7_golden_check(self):
+        """Every path records its golden-output check against the reference (2026-11-13)."""
+        manifests = dict(self.manifests())
+        v5 = manifests[EXAMPLES / "manifests" / "upscale-realesrgan.toml"]
+        v7 = copy.deepcopy(v5)
+        v7["manifest_version"] = 7
+        golden = {"set": "upscale-golden", "cases": 24}
+        worst = {"cuda-fp16-tiled": 47.5, "cpu-fp32": 72.0}
+        for path in v7["paths"]:
+            path["validated"]["golden"] = dict(golden)
+            if not path.get("reference"):
+                path["validated"]["golden"]["worst"] = worst[path["id"]]
+        self.assertEqual([e.message for e in self.validator.iter_errors(v7)], [])
+        for path in v7["paths"]:
+            if not path.get("reference"):
+                with self.subTest(path=path["id"]):
+                    self.assertTrue(within_tolerance(path))
+
+        # The golden check belongs to version 7, and version 7 requires it on every path.
+        broken = copy.deepcopy(v5)
+        broken["paths"][0]["validated"]["golden"] = dict(golden)
+        self.assert_invalid(broken, "golden in version 5")
+        for n in range(len(v7["paths"])):
+            with self.subTest(missing=n):
+                broken = copy.deepcopy(v7)
+                del broken["paths"][n]["validated"]["golden"]
+                self.assert_invalid(broken, "version 7 path without golden")
+        broken = copy.deepcopy(v7)
+        broken["paths"][0]["validated"]["golden"]["worst"] = 0
+        self.assert_invalid(broken, "worst on the reference path")
+        broken = copy.deepcopy(v7)
+        del broken["paths"][1]["validated"]["golden"]["worst"]
+        self.assert_invalid(broken, "non-reference path without worst")
+        for why, key, value in [
+            ("no cases", "cases", 0),
+            ("bad set name", "set", "Golden Set"),
+            ("negative worst", "worst", -1),
+        ]:
+            with self.subTest(why=why):
+                broken = copy.deepcopy(v7)
+                broken["paths"][1]["validated"]["golden"][key] = value
+                self.assert_invalid(broken, why)
+
+        # Out of tolerance is valid JSON but must never be accepted by a host.
+        out = copy.deepcopy(v7["paths"][1])
+        out["validated"]["golden"]["worst"] = 40.0
+        self.assertFalse(within_tolerance(out))
+
+
+def within_tolerance(path):
+    """The host rule the schema cannot state: a path's worst golden deviation is in tolerance."""
+    tolerance = path["tolerance"]
+    worst = path["validated"]["golden"]["worst"]
+    if tolerance["metric"] == "psnr_db":
+        return worst >= tolerance["value"]
+    if tolerance["metric"] == "exact":
+        return worst == 0
+    return worst <= tolerance["value"]
+
 
 class ProtocolSchema(unittest.TestCase):
     validator = load_schema("protocol.schema.json")
@@ -430,6 +489,29 @@ class HostSchema(unittest.TestCase):
                     self.assertEqual(passing, [])
                 else:
                     self.assertEqual(route["chosen"], passing[0])
+
+    def test_ranges_and_outlook_are_consistent(self):
+        """Host rules the schema cannot state: min_s <= max_s, and outlook follows the result."""
+        for n, report in enumerate(self.reports(), 1):
+            ranges = []
+            if report["type"] == "job_status":
+                ranges = [report[k] for k in ("estimate", "remaining") if k in report]
+            else:
+                ranges = [
+                    c["estimate"]
+                    for c in report["candidates"]
+                    if "min_s" in c.get("estimate", {})
+                ]
+                if report.get("outlook") is not None and report["chosen"] is not None:
+                    chosen = next(
+                        c for c in report["candidates"] if c["impl"] == report["chosen"]
+                    )
+                    self.assertEqual(
+                        report["outlook"], chosen.get("outlook", report["outlook"])
+                    )
+            for r in ranges:
+                with self.subTest(line=n):
+                    self.assertLessEqual(r["min_s"], r["max_s"])
 
     def test_invalid_reports_are_rejected(self):
         for n, report in enumerate(jsonl(EXAMPLES / "host" / "invalid.jsonl"), 1):

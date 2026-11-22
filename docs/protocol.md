@@ -1,7 +1,7 @@
 # CFA4 AI worker-protokoll, 3. változat
 
 > **Állapot:** javaslat, még egyetlen worker sem valósítja meg · **Utolsó átnézés:** 2026-11-13
-> (manifest 7. változat: arany kimenetes ellenőrzés utanként; gazdajelentés 4. változat: becslés,
+> (manifest 7. változat: arany kimenetes ellenőrzés utanként; gazdajelentés 5. változat: kötegelés és licencelfogadás; 4. változat: becslés,
 > tájékoztatási kategória, ütemezés, prioritás, végrehajtási út) ·
 > **Változás:** major (3. változat: a CFA4-nek nincs fizetős része, ezért a licenckulcsos vízjel,
 > az export utáni lépés, a használati korlátok és a `limit_reached` hibakód minden változatból
@@ -212,3 +212,4 @@ A `scheduled` állapotú jobnak mindig van `at` vagy `at_with_resources` módú 
 | 2 | `scheduled` és `paused` állapot (2026-11-07) |
 | 3 | A `limit_reached` hibakód és a `route_decision` `watermark` becslése kikerült, mert a CFA4-nek nincs fizetős része (2026-11-08); a `watermarked` csak tartalmi jelölést jelent (4. pont) |
 | 4 | Becslés tartománnyal és bizonyossággal, `elapsed_s`, `remaining`, `outlook`, `path`, `switched`, `approval`, `class`, `priority`, `schedule`, `missed` (2026-11-13) |
+| 5 | `batch_key` (azonos modellű feladatok kötegelése) és `awaiting` (`license_acceptance`: a modell feltételeinek egyszeri elfogadása súlyhash-enként; csak `blocked` állapotban), 2026-11-22 |

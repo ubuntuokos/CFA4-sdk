@@ -36,3 +36,6 @@
 {"type":"route_decision","capability":"AI-091","request":{},"chosen":"a","candidates":[{"impl":"a","runtime":"onnx","ok":true,"failed":[],"outlook":"not_executable_now"}]}
 {"type":"route_decision","capability":"AI-091","request":{},"chosen":null,"candidates":[{"impl":"a","runtime":"onnx","ok":false,"failed":[{"check":"vram","detail":"x"}],"outlook":"slower"}]}
 {"type":"route_decision","capability":"AI-091","request":{},"chosen":"a","candidates":[{"impl":"a","runtime":"onnx","ok":true,"failed":[],"estimate":{"min_s":5}}]}
+{"type":"job_status","job":"j-13","capability":"AI-091","state":"queued","at":"2026-11-22T12:00:00Z","awaiting":{"kind":"license_acceptance","model":"m","weights_sha256":"abababababababababababababababababababababababababababababababab"}}
+{"type":"job_status","job":"j-14","capability":"AI-091","state":"blocked","at":"2026-11-22T12:00:00Z","blocked":[{"check":"license","detail":"x"}],"awaiting":{"kind":"license_acceptance","model":"m","weights_sha256":"xyz"}}
+{"type":"job_status","job":"j-15","capability":"AI-091","state":"queued","at":"2026-11-22T12:00:00Z","batch_key":""}

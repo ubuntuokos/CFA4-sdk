@@ -91,3 +91,24 @@ jobs:
         run: .venv/bin/actionlint
       - name: zizmor
         run: .venv/bin/zizmor --offline --format=github .github
+
+  cfa4-gate:
+    # The one job to make a required status check (repository ruleset). It summarises the
+    # jobs above, so renaming one of them never breaks the rule. Same name and logic as the
+    # cfa4-gate job in CFA4-AI_modules and CinemaFundArchitecture4.
+    name: cfa4-gate
+    if: always()
+    needs: [schemas, rust, lint]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2
+    steps:
+      - name: PASS / FAIL
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          if echo "$RESULTS" | jq -e 'to_entries | any(.value.result != "success")' >/dev/null; then
+            echo "::error::CFA4 gate: FAIL"
+            exit 1
+          fi
+          echo "CFA4 gate: PASS" | tee -a "$GITHUB_STEP_SUMMARY"
